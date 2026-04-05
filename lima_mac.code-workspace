@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../lima"
+		},
+		{
+			"path": "../blakeports"
+		},
+		{
+			"path": "../dotfiles"
+		}
+	],
+	"settings": {}
+}

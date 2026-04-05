@@ -1,0 +1,45 @@
+# Lima macOS 26 VM Configuration - Environment Variables
+#
+# This file is NOT committed to git (.gitignore prevents it).
+# Copy this template and set your environment variables.
+#
+# To use:
+#   1. Copy this file: cp .envrc.template .envrc
+#   2. Edit .envrc with your secrets and configuration
+#   3. The configure.sh script will automatically source it
+#
+# WARNING: Never commit secrets to version control!
+
+# Set the password for the guest user (e.g., blake.guest)
+# The password will be set using macOS's dscl during first boot provisioning.
+# If not set, the system-generated password is used (stored at ~/password)
+#
+# Example: export MACOS_PASSWORD="YourSecurePasswordHere"
+# export MACOS_PASSWORD=""
+
+# Skip chezmoi dotfiles provisioning (optional, defaults to false)
+# Set to "1" to skip: export SKIP_CHEZMOI="1"
+# export SKIP_CHEZMOI=""
+
+# SSH public key to inject into the VM's authorized_keys.
+# If set, configure.sh REPLACES authorized_keys with only this key — overriding
+# Lima's default behavior of injecting all ~/.ssh/*.pub keys from the host.
+# If not set, Lima's default multi-key injection is used (recommended for dev).
+#
+# To get the content from a specific key file, run this on your Mac and paste the result:
+#   cat /Users/blake/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys/bc443a0d171b05237a41757a7da7c530.pub
+#
+# export SSH_PUBLIC_KEY=""
+
+# Enable automatic login for the guest user on boot.
+# When enabled, configure.sh configures macOS to bypass the login screen and
+# auto-login as the provisioned user. This is required for GitHub Actions runner
+# LaunchAgent services to start automatically when the VM boots.
+# AUTO_LOGIN defaults to 1 (enabled). Set to "0" to disable (shows login screen).
+# Only disable in environments where login-screen security is required.
+# export AUTO_LOGIN="0"
+
+# Add other secrets and configuration below as needed
+# export GITHUB_TOKEN=""
+# export API_KEY=""
+# export CUSTOM_VAR=""
