@@ -74,14 +74,26 @@ install_macports() {
     log_info "Latest MacPorts release: ${PORT_LATEST_RELEASE_NUMBER}"
 
     MACOS_VERSION=$(sw_vers -productVersion | cut -d. -f1)
-    MACOS_VERSION_NAME=$(awk '/SOFTWARE LICENSE AGREEMENT FOR macOS/' \
-        '/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/en.lproj/OSXSoftwareLicense.rtf' \
-        | awk -F 'macOS ' '{print $NF}' | awk '{print substr($0, 0, length($0)-1)}')
+    log_info "macOS major version: ${MACOS_VERSION}"
 
-    log_info "macOS version: ${MACOS_VERSION} (${MACOS_VERSION_NAME})"
+    # Resolve the PKG asset name from the GitHub release — avoids reconstructing the
+    # macOS code name (which can differ between sw_vers and the PKG filename, e.g.
+    # the macOS 26 RTF returns "Tahoe 26" but the PKG is named "26-Tahoe").
+    MACPORTS_PKG_NAME=$(curl -fsSL "https://api.github.com/repos/macports/macports-base/releases/latest" \
+        | grep '"name"' \
+        | grep "MacPorts-.*-${MACOS_VERSION}-.*\.pkg" \
+        | grep -v '\.asc' \
+        | head -1 \
+        | cut -d'"' -f4)
 
-    if [[ $MACOS_VERSION -ge 16 ]]; then
-        log_info "macOS ${MACOS_VERSION} — no binary PKG available yet; building MacPorts from source..."
+    if [[ -n "$MACPORTS_PKG_NAME" ]]; then
+        MACPORTS_PKG_URL="https://github.com/macports/macports-base/releases/download/${PORT_LATEST_RELEASE}/${MACPORTS_PKG_NAME}"
+        log_info "Downloading MacPorts binary PKG: ${MACPORTS_PKG_NAME}"
+        curl -fsSL -o /tmp/macports.pkg "$MACPORTS_PKG_URL"
+        sudo installer -pkg /tmp/macports.pkg -target /
+        rm -f /tmp/macports.pkg
+    else
+        log_info "No binary PKG found for macOS ${MACOS_VERSION} — building from source..."
         cd "$HOME"
         curl -fsSL -O "https://distfiles.macports.org/MacPorts/MacPorts-${PORT_LATEST_RELEASE_NUMBER}.tar.bz2"
         tar xf "MacPorts-${PORT_LATEST_RELEASE_NUMBER}.tar.bz2"
@@ -91,12 +103,6 @@ install_macports() {
         sudo make install
         cd "$HOME"
         rm -rf "MacPorts-${PORT_LATEST_RELEASE_NUMBER}" "MacPorts-${PORT_LATEST_RELEASE_NUMBER}.tar.bz2"
-    else
-        MACPORTS_PKG="https://github.com/macports/macports-base/releases/download/${PORT_LATEST_RELEASE}/MacPorts-${PORT_LATEST_RELEASE_NUMBER}-${MACOS_VERSION}-${MACOS_VERSION_NAME}.pkg"
-        log_info "Downloading MacPorts binary PKG: ${MACPORTS_PKG}"
-        curl -fsSL -o /tmp/macports.pkg "$MACPORTS_PKG"
-        sudo installer -pkg /tmp/macports.pkg -target /
-        rm -f /tmp/macports.pkg
     fi
 
     log_info "MacPorts installed"
