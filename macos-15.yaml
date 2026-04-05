@@ -87,8 +87,10 @@ mounts:
 
 vmOpts:
   vz:
-    # macOS 15 does not support "asif" — use "raw" format.
-    diskImageFormat: "raw"
+    # "asif" is a sparse, copy-on-write disk format available on macOS 26+.
+    # It saves significant disk space vs "raw". Cannot be converted back to "raw".
+    # Set to "raw" if you need compatibility with older tooling.
+    diskImageFormat: "asif"
 
     # Rosetta is only useful for Linux guests running x86_64 binaries.
     # Leave disabled for a macOS guest.
