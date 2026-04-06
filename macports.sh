@@ -159,6 +159,48 @@ selfupdate_macports() {
     log_info "MacPorts selfupdate complete"
 }
 
+# ── Step 5: Shell profile ──────────────────────────────────────────────────────
+#
+# The MacPorts PKG installer postflight script normally configures the user's
+# shell profile, but it does not fire correctly when run via `sudo installer`
+# from an SSH session (no interactive user context). We configure it explicitly.
+#
+# Two complementary mechanisms — both are idempotent:
+#   1. /etc/paths.d/macports — read by /usr/libexec/path_helper (called from
+#      /etc/zprofile and /etc/profile), affects all login shells for all users.
+#      This is the cleanest system-wide approach.
+#   2. ~/.zprofile — direct export for the current user; belt-and-suspenders for
+#      interactive zsh sessions and any shell not invoking path_helper.
+#
+# Reference: https://guide.macports.org/chunked/installing.shell.html
+
+configure_shell_profile() {
+    # /etc/paths.d/macports — system-wide, picked up by path_helper
+    if [[ ! -f /etc/paths.d/macports ]]; then
+        log_info "Creating /etc/paths.d/macports..."
+        printf '/opt/local/bin\n/opt/local/sbin\n' | sudo tee /etc/paths.d/macports > /dev/null
+    else
+        log_info "/etc/paths.d/macports already exists — skipping"
+    fi
+
+    # ~/.zprofile — user login profile for zsh (macOS default shell)
+    local zprofile="$HOME/.zprofile"
+    if ! grep -q "/opt/local/bin" "$zprofile" 2>/dev/null; then
+        log_info "Adding MacPorts PATH to ${zprofile}..."
+        cat >> "$zprofile" <<'EOF'
+
+# MacPorts
+export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+export MANPATH="/opt/local/share/man:${MANPATH:-}"
+EOF
+    else
+        log_info "${zprofile} already contains MacPorts PATH — skipping"
+    fi
+
+    log_info "Shell profile configured"
+    log_info "PATH will include /opt/local/bin in new login shells"
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 main() {
@@ -169,6 +211,7 @@ main() {
     install_macports
     configure_macports
     selfupdate_macports
+    configure_shell_profile
 
     log_info "MacPorts setup complete!"
     log_info "Next step: make register-<instance>"
