@@ -37,9 +37,9 @@ CONFIG_15      := $(CURDIR)/macos-15.yaml
 # 'make clean-blakeports' to tear down before re-provisioning.
 
 blakeports:
-	@running=$$($(LIMACTL) list 2>/dev/null | awk 'NR>1 && /Running/ && ($$1=="$(INSTANCE_26)" || $$1=="$(INSTANCE_15)") {print $$1}'); \
-	if [ -n "$$running" ]; then \
-		echo "Error: instance(s) already running: $$running"; \
+	@existing=$$($(LIMACTL) list 2>/dev/null | awk 'NR>1 && ($$1=="$(INSTANCE_26)" || $$1=="$(INSTANCE_15)") {print $$1}'); \
+	if [ -n "$$existing" ]; then \
+		echo "Error: instance(s) already exist: $$existing"; \
 		echo ""; \
 		echo "Run 'make status' to inspect the current state."; \
 		echo "Run 'make clean-blakeports' to remove existing instances and start fresh."; \
