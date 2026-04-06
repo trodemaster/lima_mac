@@ -1,7 +1,8 @@
 # Lima macOS VM Management
 # Manages three VM instances: macos-26 (release), macos-26-beta (beta), macos-15 (N-1)
 
-.PHONY: macos-26 run-26 clean-26 macports-26 \
+.PHONY: blakeports clean-blakeports _blakeports-setup-26 _blakeports-setup-15 \
+        macos-26 run-26 clean-26 macports-26 \
         macos-26-beta run-26-beta clean-26-beta macports-26-beta \
         macos-15 run-15 clean-15 macports-15 \
         register-26 unregister-26 \
@@ -26,6 +27,40 @@ CONFIG_26_BETA := $(CURDIR)/macos-26-beta.yaml
 CONFIG_15      := $(CURDIR)/macos-15.yaml
 
 .DEFAULT_GOAL := help
+
+# ── BlakePorts: full setup for macOS 26 + 15 in parallel ─────────────────────
+#
+# Runs the four-step chain (create → start → macports → register) for both
+# macOS 26 and macOS 15 simultaneously via $(MAKE) -j2.
+#
+# Guard: errors out if either instance is already running, suggesting
+# 'make clean-blakeports' to tear down before re-provisioning.
+
+blakeports:
+	@running=$$($(LIMACTL) list 2>/dev/null | awk 'NR>1 && /Running/ && ($$1=="$(INSTANCE_26)" || $$1=="$(INSTANCE_15)") {print $$1}'); \
+	if [ -n "$$running" ]; then \
+		echo "Error: instance(s) already running: $$running"; \
+		echo ""; \
+		echo "Run 'make status' to inspect the current state."; \
+		echo "Run 'make clean-blakeports' to remove existing instances and start fresh."; \
+		exit 1; \
+	fi
+	$(MAKE) -j2 _blakeports-setup-26 _blakeports-setup-15
+
+_blakeports-setup-26:
+	$(MAKE) macos-26
+	$(MAKE) run-26
+	$(MAKE) macports-26
+	$(MAKE) register-26
+
+_blakeports-setup-15:
+	$(MAKE) macos-15
+	$(MAKE) run-15
+	$(MAKE) macports-15
+	$(MAKE) register-15
+
+clean-blakeports:
+	$(MAKE) -j2 clean-26 clean-15
 
 # ── macOS 26 (release) ────────────────────────────────────────────────────────
 
@@ -108,6 +143,10 @@ help:
 	@echo "Lima macOS VM Management"
 	@echo ""
 	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Full setup (macOS 26 + 15 in parallel):"
+	@echo "  blakeports          Create, provision, and register both runners in parallel"
+	@echo "  clean-blakeports    Stop and remove both macOS 26 and macOS 15 instances"
 	@echo ""
 	@echo "VM lifecycle (run in order for first-time setup):"
 	@echo "  macos-26        Create, provision, and stop macOS 26 VM"
