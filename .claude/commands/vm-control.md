@@ -113,7 +113,7 @@ echo "Tab: $TAB"   # e.g. "tab 1 of window id 39"
 
 ### Send additional commands to the same session
 
-Use the tab reference returned above in `in <tab>`:
+Use the tab reference in `in <tab>` to append commands to the open session:
 
 ```bash
 limactl shell <instance> -- bash -c '
@@ -122,9 +122,57 @@ sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
 '
 ```
 
-Each `do script ... in <tab>` call appends the command to that session exactly as if typed
-at the prompt and Enter pressed. Chain as many as needed. Take a screenshot after each to
-read the output.
+Each call appends the command exactly as if typed at the prompt and Enter pressed.
+Chain as many as needed. Take a screenshot after each to read the output.
+
+### Find the front window ID (if you didn't capture the tab reference)
+
+```bash
+limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to get {id, name} of front window"
+'
+# returns e.g.: 38, blake.guest — -zsh — 120×30
+```
+
+### Running osascript inside the Terminal session
+
+Commands sent via `do script` run in the full Aqua GUI context — osascript works without
+any additional TCC permissions. This means you can open any app, control any GUI element,
+or interact with the system in ways not possible from a plain SSH session.
+
+**Quoting pattern** — use single quotes inside `do script` with escaped double quotes for
+the inner AppleScript:
+
+```bash
+# Open Console.app from the Terminal session
+limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to do script \"osascript -e '\''tell application \\\"Console\\\" to activate'\''\" in tab 1 of window id 38"
+'
+```
+
+The quoting layers from outside in:
+1. Bash single quotes wrap the whole `limactl shell` argument
+2. `\"` escapes double quotes inside the outer `-e "..."` string
+3. `'\''` ends the bash single-quote, inserts a literal `'`, reopens single-quote
+4. `\\\"` becomes `\"` in the shell string, which becomes `"` in AppleScript
+
+For complex scripts, it's cleaner to write the osascript to a temp file in the VM and
+run it from the Terminal session:
+
+```bash
+# Write script to VM
+limactl shell <instance> -- bash -c 'cat > /tmp/open-console.scpt << "EOF"
+tell application "Console" to activate
+EOF'
+
+# Run it from the Terminal session
+limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to do script \"osascript /tmp/open-console.scpt\" in tab 1 of window id 38"
+'
+```
 
 ### Bring Terminal to front and screenshot
 
