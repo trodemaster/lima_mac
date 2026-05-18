@@ -92,15 +92,55 @@ required. This makes dialog navigation reliable and position-independent.
 
 ## Opening a privileged Terminal shell
 
-`osascript` can open Terminal and pass a command string directly via `do script`. This is
-the cleanest way to run arbitrary commands in the GUI session — no need to type via
-cliclick. The command runs as the logged-in GUI user with full Aqua context.
+`osascript` opens Terminal and passes commands via `do script`. The key insight: `do script`
+returns the tab reference (`tab N of window id N`) which can be reused to send further
+commands into the **same session** without opening new windows.
 
-### Step 1 — handle the TCC consent dialog (first run only)
+All VMs have this TCC permission pre-approved during the build (`configure_terminal_access`),
+so no consent dialog appears.
 
-The first time osascript controls Terminal, macOS shows a consent dialog:
-"sshd-keygen-wrapper wants access to control Terminal". Bootstrap a cliclick LaunchAgent
-to approve it, then immediately call osascript:
+### Open a session and capture the tab reference
+
+```bash
+TAB=$(limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to do script \"sudo -i\""
+')
+echo "Tab: $TAB"   # e.g. "tab 1 of window id 39"
+```
+
+`sudo -i` drops into a root shell immediately — sudo is passwordless in all VM builds.
+
+### Send additional commands to the same session
+
+Use the tab reference returned above in `in <tab>`:
+
+```bash
+limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to do script \"whoami\" in tab 1 of window id 39"
+'
+```
+
+Each `do script ... in <tab>` call appends the command to that session exactly as if typed
+at the prompt and Enter pressed. Chain as many as needed. Take a screenshot after each to
+read the output.
+
+### Bring Terminal to front and screenshot
+
+```bash
+limactl shell <instance> -- bash -c '
+sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
+  -e "tell application \"Terminal\" to activate"
+'
+limactl screenshot <instance> --output /tmp/shot.png
+```
+
+### TCC consent dialog (first run on a fresh VM only)
+
+VMs built with current `configure.sh` have the Terminal AppleEvents permission
+pre-approved. On a fresh VM where it hasn't been approved yet, the first `do script` call
+triggers a consent dialog. Bootstrap a cliclick LaunchAgent first to auto-approve it:
 
 ```bash
 # Bootstrap cliclick to approve the upcoming dialog
@@ -124,13 +164,11 @@ cat > /tmp/com.lima.click.plist << PLIST
 PLIST
 sudo launchctl bootstrap gui/$(id -u) /tmp/com.lima.click.plist
 '
-
-# Trigger the osascript — dialog appears, cliclick approves it after 3s
+# Then call do script — dialog appears, cliclick approves after 3s
 limactl shell <instance> -- bash -c '
 sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
-  -e "tell application \"Terminal\" to do script \"sudo -i; whoami\""
+  -e "tell application \"Terminal\" to do script \"sudo -i\""
 '
-
 # Clean up
 limactl shell <instance> -- bash -c '
 launchctl bootout gui/$(id -u)/com.lima.click 2>/dev/null || true
@@ -138,33 +176,7 @@ rm -f /tmp/lima-click.sh /tmp/com.lima.click.plist
 '
 ```
 
-**Important:** if the dialog appears and osascript is still waiting, the command will
-succeed after cliclick approves — do not cancel. The TCC grant persists permanently
-(`auth_reason=3`) so the dialog only appears once per client/target pair.
-
-### Step 2 — subsequent runs (TCC already approved)
-
-Once Terminal's AppleEvents permission is granted, call osascript directly:
-
-```bash
-limactl shell <instance> -- bash -c '
-sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
-  -e "tell application \"Terminal\" to do script \"<your command here>\""
-'
-```
-
-### Step 3 — bring Terminal to front
-
-After `do script`, Terminal may not be visible. Activate it:
-
-```bash
-limactl shell <instance> -- bash -c '
-sudo launchctl asuser $(id -u) sudo -u $(whoami) osascript \
-  -e "tell application \"Terminal\" to activate"
-'
-```
-
-Then take a screenshot to read the output.
+The TCC grant persists permanently (`auth_reason=3`) — the dialog only ever appears once.
 
 ### Privileged shell via sudo -i
 
