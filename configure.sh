@@ -71,8 +71,9 @@ main() {
             configure_screensaver
             ;;
         wallpaper)
-            # Set login window and user desktop wallpaper.
+            # Set login window and user desktop wallpaper, then pre-approve Terminal access.
             configure_wallpaper
+            configure_terminal_access
             ;;
         "")
             # Default: full provisioning run triggered by Lima at first boot.
@@ -132,7 +133,7 @@ configure_screensaver() {
     log_info "Screensaver, screen lock, and energy saver settings disabled"
 }
 
-# ── GUI Session Helper ────────────────────────────────────────────────────────
+# ── GUI Session Helpers ───────────────────────────────────────────────────────
 
 # Run a command inside the current user's Aqua GUI session.
 # Combines launchctl asuser (gui bootstrap namespace) with sudo -u (correct UID).
@@ -140,6 +141,41 @@ configure_screensaver() {
 # Ref: https://scriptingosx.com/2020/08/running-a-command-as-another-user/
 run_in_gui_session() {
     sudo launchctl asuser "$(id -u)" sudo -u "$(whoami)" "$@"
+}
+
+# Bootstrap a temporary cliclick LaunchAgent in gui/<uid>.
+# The LaunchAgent sleeps $1 seconds then sends $2 as cliclick key arguments.
+# launchd spawns it with no sshd ancestor so CGEventPost reaches the GUI session.
+# Call _cliclick_bootout with the same label to clean up.
+# Usage: _cliclick_bootstrap <label> <sleep_secs> <cliclick_args>
+_cliclick_bootstrap() {
+    local _label="$1" _sleep="$2" _args="$3"
+    local _uid _script _plist
+    _uid=$(id -u)
+    _script="/tmp/lima-${_label}.sh"
+    _plist="/tmp/${_label}.plist"
+    printf '#!/bin/bash\nsleep %s && /opt/local/bin/cliclick %s\n' "$_sleep" "$_args" > "$_script"
+    chmod +x "$_script"
+    cat > "$_plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>${_label}</string>
+    <key>ProgramArguments</key>
+    <array><string>/bin/bash</string><string>${_script}</string></array>
+    <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+PLIST
+    sudo launchctl bootstrap gui/"$_uid" "$_plist" 2>/dev/null || true
+}
+
+_cliclick_bootout() {
+    local _label="$1" _uid
+    _uid=$(id -u)
+    launchctl bootout gui/"$_uid"/"$_label" 2>/dev/null || true
+    rm -f "/tmp/lima-${_label}.sh" "/tmp/${_label}.plist"
 }
 
 # ── Wallpaper ─────────────────────────────────────────────────────────────────
@@ -168,33 +204,7 @@ configure_wallpaper() {
         done
         log_info "Console login session ready after ${_waited}s (console user: ${_console_user})"
 
-        # cliclick needs kTCCServicePostEvent to send key events. tccd attributes the request
-        # to the responsible process ancestor — from SSH that is sshd-keygen-wrapper, a platform
-        # binary that gets auto-denied with no prompt. A LaunchAgent plist bootstrapped into
-        # gui/501 is spawned directly by launchd, breaking the sshd ancestry chain and allowing
-        # the pre-seeded kTCCServiceAccessibility grant to take effect.
-        local _click_script=/tmp/lima-cliclick-allow.sh
-        local _click_plist=/tmp/com.lima.cliclick-allow.plist
-        cat > "$_click_script" << 'CLICKSCRIPT'
-#!/bin/bash
-sleep 10 && /opt/local/bin/cliclick kp:tab kp:return
-CLICKSCRIPT
-        chmod +x "$_click_script"
-        local _uid
-        _uid=$(id -u)
-        cat > "$_click_plist" << CLICKPLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key><string>com.lima.cliclick-allow</string>
-    <key>ProgramArguments</key>
-    <array><string>/bin/bash</string><string>$_click_script</string></array>
-    <key>RunAtLoad</key><true/>
-</dict>
-</plist>
-CLICKPLIST
-        sudo launchctl bootstrap gui/"$_uid" "$_click_plist" 2>/dev/null || true
+        _cliclick_bootstrap com.lima.cliclick-wallpaper 10 "kp:tab kp:return"
 
         if run_in_gui_session osascript -e \
             "tell application \"Finder\" to set desktop picture to POSIX file \"${wallpaper}\""; then
@@ -203,13 +213,51 @@ CLICKPLIST
             log_warn "User desktop wallpaper skipped — Finder not responding (non-fatal)"
         fi
 
-        launchctl bootout gui/"$_uid"/com.lima.cliclick-allow 2>/dev/null || true
-        rm -f "$_click_script" "$_click_plist"
+        _cliclick_bootout com.lima.cliclick-wallpaper
     else
         log_warn "No GUI session — user desktop wallpaper skipped (login window wallpaper set)"
     fi
 
     log_info "Wallpaper configured"
+}
+
+# ── Terminal AppleEvents Pre-Approval ────────────────────────────────────────
+
+configure_terminal_access() {
+    log_info "Pre-approving sshd-keygen-wrapper → Terminal AppleEvents access..."
+
+    # Idempotent: skip if already approved in the user TCC DB.
+    local _tcc_db="$HOME/Library/Application Support/com.apple.TCC/TCC.db"
+    if [[ -f "$_tcc_db" ]]; then
+        local _auth
+        _auth=$(sqlite3 "$_tcc_db" \
+            "SELECT auth_value FROM access WHERE service='kTCCServiceAppleEvents'
+             AND client='/usr/libexec/sshd-keygen-wrapper'
+             AND indirect_object_identifier='com.apple.Terminal';" 2>/dev/null || true)
+        if [[ "$_auth" == "2" ]]; then
+            log_info "Terminal AppleEvents access already approved — skipping"
+            return 0
+        fi
+    fi
+
+    if ! pgrep -x Dock >/dev/null 2>&1; then
+        log_warn "No GUI session — Terminal AppleEvents approval skipped"
+        return 0
+    fi
+
+    # kTCCServiceAppleEvents cannot be pre-seeded via disk patching (tccd rejects all
+    # external entries unconditionally). Trigger the consent dialog at runtime and approve
+    # it with a cliclick LaunchAgent — tccd then writes a genuine auth_reason=3 entry.
+    _cliclick_bootstrap com.lima.cliclick-terminal 10 "kp:tab kp:return"
+
+    if run_in_gui_session osascript -e \
+        'tell application "Terminal" to do script ""'; then
+        log_info "Terminal AppleEvents access approved"
+    else
+        log_warn "Terminal AppleEvents approval failed (non-fatal — approve manually if needed)"
+    fi
+
+    _cliclick_bootout com.lima.cliclick-terminal
 }
 
 # ── Setup Assistant Suppression ───────────────────────────────────────────────
