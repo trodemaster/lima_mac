@@ -1,0 +1,701 @@
+                        service: kTCCServiceLiverpool
+                         client: com.apple.voicebankingd
+                    client_type: 0
+                     auth_value: 0
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036392
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036392
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.securityd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036392
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036392
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.triald
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036393
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036393
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.syncdefaultsd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036394
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036394
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.transparencyd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.ScreenTimeAgent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.icloud.searchpartyuseragent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.siriknowledged
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.identityservicesd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.appleaccountd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.StatusKitAgent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036395
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036395
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.knowledge-agent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036396
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036396
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.findmy.findmylocateagent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036396
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036396
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.cloudphotod
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036396
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036396
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.willowd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036396
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036396
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.donotdisturbd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036396
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036396
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.assistant.assistantd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036397
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036397
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.cloudpaird
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036397
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036397
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.Passbook
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036397
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036397
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.UsageTrackingAgent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036398
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036398
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.imagent
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036398
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036398
+
+                        service: kTCCServiceUbiquity
+                         client: com.apple.finder
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036400
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036400
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.routined
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036403
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036403
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.amsengagementd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036403
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036403
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.stickersd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036403
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036403
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.suggestd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036403
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036403
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.sociallayerd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036404
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036404
+
+                        service: kTCCServiceUbiquity
+                         client: com.apple.Spotlight
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036405
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036405
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.passd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036406
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036406
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.accessibility.heard
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036406
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036406
+
+                        service: kTCCServiceUbiquity
+                         client: com.apple.weather.widget
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036407
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036407
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.CloudTelemetryService.xpc
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036407
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036407
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.callhistory.sync-helper
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036409
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036409
+
+                        service: kTCCServiceUbiquity
+                         client: com.apple.stocks.widget
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036411
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036411
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.avatarsd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036411
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036411
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.biomesyncd
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036413
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036413
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.Safari
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036459
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036459
+
+                        service: kTCCServiceLiverpool
+                         client: com.apple.Maps
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 0
+                  last_modified: 1779036630
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036630
+
+                        service: kTCCServiceAppleEvents
+                         client: /usr/libexec/sshd-keygen-wrapper
+                    client_type: 1
+                     auth_value: 2
+                    auth_reason: 3
+                   auth_version: 1
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: com.apple.finder
+  indirect_object_code_identity: úÞ^L
+                          flags: 
+                  last_modified: 1779036847
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779036847

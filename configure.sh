@@ -14,6 +14,11 @@
 #                         starts on boot and LaunchAgent runner services auto-start.
 #                         Defaults to 1 (on). Set to 0 to show the login screen.
 #                         WARNING: bypasses the login screen — only use in trusted envs.
+#   GITHUB_TOKEN       - Personal access token with repo/actions scope for runner setup.
+#                         Required for configure_runner; skipped if unset.
+#   RUNNER_LABEL       - GitHub Actions runner name (e.g. macOS_26). Required for runner setup.
+#   GITHUB_OWNER       - GitHub owner for runner registration (default: trodemaster).
+#   GITHUB_REPO        - GitHub repo for runner registration (default: blakeports).
 #
 # Usage:
 #   ./configure.sh                                # Run all configuration steps
@@ -28,10 +33,9 @@ set -eux -o pipefail
 # Load environment variables from .envrc if it exists
 # This allows passing secrets and custom configuration to the script
 if [[ -f /Volumes/lima_mac/.envrc ]]; then
-    # Use set +e/set -e to continue even if .envrc has unset variables
-    set +e
+    set +ex
     source /Volumes/lima_mac/.envrc
-    set -e
+    set -ex
 fi
 
 # Color output for readability
@@ -55,22 +59,157 @@ log_error() {
 # ── Main Configuration Steps ───────────────────────────────────────────────────
 
 main() {
-    log_info "Starting macOS 26 VM configuration..."
-    
-    # Verify we're in a macOS guest VM
-    if ! [[ "$OSTYPE" == "darwin"* ]]; then
-        log_error "This script is designed for macOS guests only"
-        exit 1
+    case "${1:-}" in
+        runner)
+            # Called by Makefile after macports.sh with RUNNER_LABEL and RUNNER_TOKEN set.
+            configure_runner
+            ;;
+        autologin)
+            # Re-apply auto-login after OS upgrades clear the setting.
+            configure_password
+            configure_autologin
+            configure_screensaver
+            ;;
+        wallpaper)
+            # Set login window and user desktop wallpaper.
+            configure_wallpaper
+            ;;
+        "")
+            # Default: full provisioning run triggered by Lima at first boot.
+            if ! [[ "$OSTYPE" == "darwin"* ]]; then
+                log_error "This script is designed for macOS guests only"
+                exit 1
+            fi
+            log_info "Starting macOS VM configuration..."
+            configure_password
+            configure_autologin
+            configure_setup_assistant
+            configure_screensaver
+            configure_ssh_keys
+            configure_chezmoi
+            log_info "Configuration complete!"
+            ;;
+        *)
+            log_error "Unknown subcommand: $1"
+            exit 1
+            ;;
+    esac
+}
+
+# ── Screensaver and Sleep ─────────────────────────────────────────────────────
+
+configure_screensaver() {
+    log_info "Disabling screensaver and screen lock..."
+
+    # Disable screensaver idle timer
+    defaults -currentHost write com.apple.screensaver idleTime 0
+    defaults write com.apple.screensaver idleTime 0
+    sudo defaults write /Library/Preferences/com.apple.screensaver loginWindowIdleTime 0
+
+    # Disable "require password after screensaver/display-off" — macOS 15 defaults this
+    # to Immediately, which causes a lock screen on every display wake (including when
+    # Lima.app connects to show the virtual display after reboot).
+    defaults write com.apple.screensaver askForPassword -int 0
+    defaults write com.apple.screensaver askForPasswordDelay -int 0
+    defaults -currentHost write com.apple.screensaver askForPassword -int 0
+    defaults -currentHost write com.apple.screensaver askForPasswordDelay -int 0
+
+    # Disable sleep and energy saver features (not appropriate for a CI VM)
+    sudo pmset -a sleep 0
+    sudo pmset -a displaysleep 0
+    sudo pmset -a disksleep 0
+    sudo pmset -a standby 0
+    sudo pmset -a powernap 0
+    sudo pmset -a womp 0
+
+    # Disable App Nap (process throttling when app is not frontmost)
+    defaults write NSGlobalDomain NSAppSleepDisabled -bool YES
+
+    # Enable Full Keyboard Access so Tab navigates all controls (including dialog buttons).
+    # Required for cliclick to deterministically reach the Allow button in TCC dialogs.
+    defaults write NSGlobalDomain AppleKeyboardUIMode -int 3
+
+    log_info "Screensaver, screen lock, and energy saver settings disabled"
+}
+
+# ── GUI Session Helper ────────────────────────────────────────────────────────
+
+# Run a command inside the current user's Aqua GUI session.
+# Combines launchctl asuser (gui bootstrap namespace) with sudo -u (correct UID).
+# Required for anything that needs window server access: CGEventPost, osascript/Finder.
+# Ref: https://scriptingosx.com/2020/08/running-a-command-as-another-user/
+run_in_gui_session() {
+    sudo launchctl asuser "$(id -u)" sudo -u "$(whoami)" "$@"
+}
+
+# ── Wallpaper ─────────────────────────────────────────────────────────────────
+
+configure_wallpaper() {
+    local wallpaper="/System/Library/Desktop Pictures/Solid Colors/Space Gray.png"
+    log_info "Setting wallpaper to Space Gray..."
+
+    # Login window wallpaper (no GUI session needed)
+    sudo defaults write /Library/Preferences/com.apple.loginwindow DesktopPicture "$wallpaper"
+
+    # User desktop wallpaper requires an active GUI session (Finder running).
+    # cliclick auto-approves the TCC dialog that appears when sshd-keygen-wrapper first
+    # contacts Finder via AppleEvents — it presses Return (the Allow button default) when
+    # UserNotificationCenter appears. Runs in gui/501 so CGEvents target the GUI session.
+    if pgrep -x Dock >/dev/null 2>&1; then
+        # Wait until the current user owns the console login session before triggering the
+        # TCC dialog. stat -f %Su /dev/console returns whoever holds the console session;
+        # once it matches our user the GUI session is established and ready to route key events.
+        local _console_user="" _waited=0 _current_user
+        _current_user=$(whoami)
+        while [[ "$_console_user" != "$_current_user" && $_waited -lt 120 ]]; do
+            _console_user=$(stat -f %Su /dev/console 2>/dev/null || true)
+            [[ "$_console_user" == "$_current_user" ]] && break
+            sleep 5; _waited=$((_waited + 5))
+        done
+        log_info "Console login session ready after ${_waited}s (console user: ${_console_user})"
+
+        # cliclick needs kTCCServicePostEvent to send key events. tccd attributes the request
+        # to the responsible process ancestor — from SSH that is sshd-keygen-wrapper, a platform
+        # binary that gets auto-denied with no prompt. A LaunchAgent plist bootstrapped into
+        # gui/501 is spawned directly by launchd, breaking the sshd ancestry chain and allowing
+        # the pre-seeded kTCCServiceAccessibility grant to take effect.
+        local _click_script=/tmp/lima-cliclick-allow.sh
+        local _click_plist=/tmp/com.lima.cliclick-allow.plist
+        cat > "$_click_script" << 'CLICKSCRIPT'
+#!/bin/bash
+sleep 10 && /opt/local/bin/cliclick kp:tab kp:return
+CLICKSCRIPT
+        chmod +x "$_click_script"
+        local _uid
+        _uid=$(id -u)
+        cat > "$_click_plist" << CLICKPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.lima.cliclick-allow</string>
+    <key>ProgramArguments</key>
+    <array><string>/bin/bash</string><string>$_click_script</string></array>
+    <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+CLICKPLIST
+        sudo launchctl bootstrap gui/"$_uid" "$_click_plist" 2>/dev/null || true
+
+        if run_in_gui_session osascript -e \
+            "tell application \"Finder\" to set desktop picture to POSIX file \"${wallpaper}\""; then
+            log_info "User desktop wallpaper configured"
+        else
+            log_warn "User desktop wallpaper skipped — Finder not responding (non-fatal)"
+        fi
+
+        launchctl bootout gui/"$_uid"/com.lima.cliclick-allow 2>/dev/null || true
+        rm -f "$_click_script" "$_click_plist"
+    else
+        log_warn "No GUI session — user desktop wallpaper skipped (login window wallpaper set)"
     fi
-    
-    # Run configuration steps
-    configure_password
-    configure_autologin
-    configure_setup_assistant
-    configure_ssh_keys
-    configure_chezmoi
-    
-    log_info "Configuration complete!"
+
+    log_info "Wallpaper configured"
 }
 
 # ── Setup Assistant Suppression ───────────────────────────────────────────────
@@ -90,6 +229,21 @@ configure_setup_assistant() {
     # (suppressFirstLoginScreens in fakecloudinit_darwin.go) as a root LaunchDaemon
     # before the first GUI session — that is the correct timing to prevent macOS
     # from resetting them during first-login initialization.
+
+    # Suppress analytics/diagnostics consent dialogs (Analytics screen appears on
+    # first login in macOS 26+, even with .AppleSetupDone present).
+    sudo /usr/bin/defaults write \
+        "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
+        AutoSubmit -bool false
+    sudo /usr/bin/defaults write \
+        "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
+        ThirdPartyDataSubmit -bool false
+    sudo /usr/bin/defaults write \
+        "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
+        AutoSubmitVersion -int 4
+    sudo /usr/bin/defaults write \
+        "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
+        SeedAutoSubmit -bool false
 
     log_info "Setup Assistant suppression complete"
 }
@@ -172,6 +326,11 @@ configure_autologin() {
         -password "$password_val" \
         >/dev/null 2>&1
 
+    # Always write autoLoginUser — sysadminctl may create kcpassword but silently
+    # fail to write the loginwindow preference when called from SSH without a
+    # Security Agent context (macOS 15+, error:22 / EINVAL).
+    sudo defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser "$current_user"
+
     if [[ -f /etc/kcpassword ]]; then
         log_info "Auto-login enabled via sysadminctl"
     else
@@ -188,7 +347,6 @@ configure_autologin() {
             return 0
         fi
 
-        sudo defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser "$current_user"
         _write_kcpassword "$password_val"
     fi
 
@@ -322,6 +480,124 @@ configure_chezmoi() {
 
     log_info "Chezmoi running in background (pid $bg_pid)"
     log_info "Monitor progress: limactl shell macos-26 tail -f $log_file"
+}
+
+# ── GitHub Actions Runner ─────────────────────────────────────────────────────
+#
+# Downloads, extracts, configures, and installs the GitHub Actions runner service.
+# Called by the Makefile after macports.sh — not during Lima provisioning.
+#
+# The registration token is generated on the host via `gh api` and passed in;
+# no GitHub authentication is needed inside the VM.
+#
+# Required env vars (set by Makefile, not secrets):
+#   RUNNER_LABEL   — runner name/label (e.g. macOS_26)
+#   RUNNER_TOKEN   — one-time registration token from GitHub API (expires in 1h)
+#
+# Optional env vars:
+#   GITHUB_OWNER   — defaults to trodemaster
+#   GITHUB_REPO    — defaults to blakeports
+
+configure_runner() {
+    log_info "Configuring GitHub Actions runner..."
+
+    if [[ -z "${RUNNER_LABEL:-}" ]]; then
+        log_warn "RUNNER_LABEL not set; skipping runner configuration"
+        return 0
+    fi
+
+    if [[ -z "${RUNNER_TOKEN:-}" ]]; then
+        log_warn "RUNNER_TOKEN not set; skipping runner configuration"
+        return 0
+    fi
+
+    local owner="${GITHUB_OWNER:-trodemaster}"
+    local repo="${GITHUB_REPO:-blakeports}"
+    local runner_labels="self-hosted,macOS,ARM64,${RUNNER_LABEL}"
+
+    # Skip if already configured on disk (idempotent guard)
+    if [[ -f /opt/actions-runner/.runner ]]; then
+        log_info "Runner already configured at /opt/actions-runner — skipping"
+        return 0
+    fi
+
+    # Determine latest stable runner version
+    local runner_version
+    runner_version=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest \
+        | jq -r '.tag_name | ltrimstr("v")' 2>/dev/null)
+
+    if [[ -z "$runner_version" ]]; then
+        log_warn "Failed to determine runner version; skipping runner setup"
+        return 0
+    fi
+    log_info "Runner version: ${runner_version}"
+
+    local arch
+    arch=$(uname -m)
+    local runner_package
+    case "$arch" in
+        "arm64")  runner_package="actions-runner-osx-arm64-${runner_version}.tar.gz" ;;
+        "x86_64") runner_package="actions-runner-osx-x64-${runner_version}.tar.gz" ;;
+        *)
+            log_warn "Unsupported arch $arch; skipping runner setup"
+            return 0
+            ;;
+    esac
+
+    local runner_url="https://github.com/actions/runner/releases/download/v${runner_version}/${runner_package}"
+    log_info "Downloading runner: ${runner_package}"
+    if ! curl -fsSL -o /tmp/actions-runner.tar.gz "$runner_url"; then
+        log_warn "Failed to download runner package; skipping"
+        return 0
+    fi
+
+    # Extract and take ownership
+    sudo mkdir -p /opt/actions-runner
+    sudo tar -xzf /tmp/actions-runner.tar.gz -C /opt/actions-runner
+    sudo chown -R "$(whoami):$(id -gn)" /opt/actions-runner
+    rm -f /tmp/actions-runner.tar.gz
+
+    # Configure the runner using the pre-generated registration token
+    log_info "Configuring runner '${RUNNER_LABEL}' with labels: ${runner_labels}"
+    set +x
+    cd /opt/actions-runner
+    ./config.sh \
+        --url "https://github.com/${owner}/${repo}" \
+        --token "${RUNNER_TOKEN}" \
+        --name "${RUNNER_LABEL}" \
+        --labels "${runner_labels}" \
+        --unattended --replace
+    local rc=$?
+    set -x
+
+    if [[ $rc -ne 0 ]]; then
+        log_warn "Runner configuration failed (rc=$rc)"
+        return 0
+    fi
+
+    # Install the LaunchAgent service
+    log_info "Installing runner LaunchAgent service..."
+    ./svc.sh install
+
+    # Attempt to start the service. LaunchAgents require the gui/<uid> launchd domain,
+    # which only exists after the user logs into the macOS desktop. If auto-login is
+    # enabled (configure_autologin), the domain will be present on next boot and the
+    # agent will start automatically. We attempt bootstrap here in case a GUI session
+    # already exists (e.g. re-runs of configure.sh), and silently continue if not.
+    local plist
+    plist=$(ls "$HOME"/Library/LaunchAgents/actions.runner.*.plist 2>/dev/null | head -1 || true)
+    if [[ -n "$plist" ]]; then
+        local uid
+        uid=$(id -u)
+        if launchctl bootstrap "gui/${uid}" "$plist" 2>/dev/null; then
+            log_info "Runner service started (gui/${uid})"
+        else
+            log_warn "Runner service installed but not started (no active GUI session)"
+            log_warn "The service will start automatically on the next GUI login"
+        fi
+    fi
+
+    log_info "Runner '${RUNNER_LABEL}' configured and service installed"
 }
 
 # ── Execution ──────────────────────────────────────────────────────────────────

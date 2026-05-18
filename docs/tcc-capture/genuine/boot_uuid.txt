@@ -1,0 +1,14 @@
+=== System DB ===
+
+=== User DB ===
+                      service: kTCCServiceAppleEvents
+                       client: /usr/libexec/sshd-keygen-wrapper
+                   auth_value: 2
+                  auth_reason: 3
+                          pid: 
+                  pid_version: 
+                    boot_uuid: UNUSED
+                last_modified: 1779036847
+                last_reminded: 1779036847
+                        flags: 
+indirect_object_code_identity: úÞ^L

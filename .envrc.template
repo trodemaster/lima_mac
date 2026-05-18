@@ -10,13 +10,6 @@
 #
 # WARNING: Never commit secrets to version control!
 
-# Set the password for the guest user (e.g., blake.guest)
-# The password will be set using macOS's dscl during first boot provisioning.
-# If not set, the system-generated password is used (stored at ~/password)
-#
-# Example: export MACOS_PASSWORD="YourSecurePasswordHere"
-# export MACOS_PASSWORD=""
-
 # Skip chezmoi dotfiles provisioning (optional, defaults to false)
 # Set to "1" to skip: export SKIP_CHEZMOI="1"
 # export SKIP_CHEZMOI=""

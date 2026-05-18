@@ -1,0 +1,13 @@
+=== /Volumes/Data/Library/Application Support/com.apple.TCC/REG.db ===
+admin     registry
+    type: table
+    name: admin
+tbl_name: admin
+rootpage: 2
+     sql: CREATE TABLE admin (key TEXT PRIMARY KEY NOT NULL, value INTEGER NOT NULL)
+
+    type: table
+    name: registry
+tbl_name: registry
+rootpage: 4
+     sql: CREATE TABLE registry (    abs_path    TEXT    NOT NULL,     first_seen  REAL    NOT NULL,     last_seen   REAL    NOT NULL,     trusted     INTEGER NOT NULL,      PRIMARY KEY (abs_path))

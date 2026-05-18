@@ -1,0 +1,107 @@
+                        service: kTCCServiceSystemPolicyAllFiles
+                         client: /usr/libexec/sshd-keygen-wrapper
+                    client_type: 1
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139
+
+                        service: kTCCServiceSystemPolicyAllFiles
+                         client: /Volumes/cidata/lima-guestagent
+                    client_type: 1
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: 
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139
+
+                        service: kTCCServiceAccessibility
+                         client: com.apple.Terminal
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139
+
+                        service: kTCCServicePostEvent
+                         client: com.apple.Terminal
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 2
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: UNUSED
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139
+
+                        service: kTCCServiceAppleEvents
+                         client: com.apple.Terminal
+                    client_type: 0
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: com.apple.systemevents
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139
+
+                        service: kTCCServiceAppleEvents
+                         client: /usr/libexec/sshd-keygen-wrapper
+                    client_type: 1
+                     auth_value: 2
+                    auth_reason: 4
+                   auth_version: 1
+                          csreq: úÞ^L
+                      policy_id: 
+indirect_object_identifier_type: 0
+     indirect_object_identifier: com.apple.finder
+  indirect_object_code_identity: 
+                          flags: 
+                  last_modified: 1779037139
+                            pid: 
+                    pid_version: 
+                      boot_uuid: UNUSED
+                  last_reminded: 1779037139

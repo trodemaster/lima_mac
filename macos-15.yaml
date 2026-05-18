@@ -97,7 +97,13 @@ vmOpts:
     rosetta:
       enabled: false
       binfmt: false
-
+    # testing new guest patching capability for macOS security features
+    guestPatch:
+        tccPermissions:
+         - preset: sshd-full-disk-access
+         - preset: lima-guestagent-full-disk-access
+         - preset: terminal-accessibility
+         - preset: cliclick-accessibility
 # Nested virtualisation lets you run another hypervisor inside this VM.
 # Requires Apple M3 or later.
 # nestedVirtualization: true
