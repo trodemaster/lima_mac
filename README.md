@@ -71,6 +71,64 @@ flowchart TD
 
 ---
 
+## Patch validation — reference test VM
+
+`macos-26-test.yaml` is a minimal config that mirrors the upstream
+[`template://macos-26`](https://github.com/lima-vm/lima/blob/master/templates/macos-26.yaml)
+exactly — no custom provisioning, no TCC permissions, no shared mounts beyond the default home
+directory. Use it to confirm that lima-devl patches work correctly against a stock Lima
+configuration before testing the full CI runner setup.
+
+### What it tests
+
+The critical path is the Lima.app bundle re-launch. On a macOS 26 host with
+`video.display: default`, `limactl start` must:
+
+1. Detect `WantsGUI && !CanRunGUI` (not already in an app bundle)
+2. Find `Lima.app` at `/Applications/MacPorts/Lima.app`
+3. Re-launch the hostagent via `open -n -a Lima.app --args hostagent ...`
+4. The hostagent (now inside the bundle) successfully creates the VM display window
+
+The log line confirming success:
+```
+Launching hostagent via app bundle: open [-n -a /Applications/MacPorts/Lima.app ...]
+```
+
+### Usage
+
+```bash
+# Prerequisites: lima-devl installed, Lima.app at /Applications/MacPorts/Lima.app
+# The 26.5 IPSW is re-used from cache if already downloaded (~13 GB)
+
+# Create the instance (expands IPSW to disk image, ~5 min)
+limactl create --tty=false --name=macos-26-test ~/Developer/lima_mac/macos-26-test.yaml
+
+# Start — watch for the app bundle launch log line and the GUI window
+limactl start macos-26-test
+
+# Confirm it is running
+limactl list
+
+# Clean up
+limactl remove -f macos-26-test
+```
+
+### How it differs from the CI runner configs
+
+| | `macos-26-test.yaml` | `macos-26.yaml` |
+|---|---|---|
+| Purpose | Patch validation | CI runner |
+| Provisioning | None | configure.sh + macports.sh |
+| Mounts | `~/` (default) | `~/Developer/lima_mac` |
+| TCC permissions | None | sshd, guestagent, terminal, cliclick |
+| Resources | Lima defaults | 16 CPUs / 32 GiB / 128 GiB |
+| Disk format | Lima default (raw on ≤26, asif on 26+) | asif |
+
+> **Note:** `limactl create` for macOS guests requires writing a large disk image and cannot
+> run within Claude Code's sandbox. Run these commands directly in your terminal.
+
+---
+
 ## First-time runner setup
 
 The full sequence to bring a VM from nothing to a working GitHub Actions runner:
