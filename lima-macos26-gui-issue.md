@@ -12,8 +12,8 @@ introduced in macOS 26.
 
 | | |
 |-|-|
-| **Host OS** | macOS 26.x (Tahoe), Apple Silicon (arm64); confirmed on 26.4 (25E246) |
-| **Lima** | v2.1.0 |
+| **Host OS** | macOS 26.x (Tahoe), Apple Silicon (arm64); confirmed on 26.4 (25E246) and 26.5 (25F71) |
+| **Lima** | v2.1.0 and v2.1.1 (upstream) |
 | **vmType** | `vz` |
 | **os** | `Darwin` |
 | **video** | `display: "default"` |

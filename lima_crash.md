@@ -10,17 +10,25 @@
 
 ## Current Status
 
-**VM is working headlessly.** The fix skips the GUI window on macOS 26+ hosts. The VM boots, SSH works, and the guest macOS 26 runs normally. A GUI window does not appear.
+**App bundle implemented — GUI window working on macOS 26+.**
+The fork (`trodemaster/lima`, branch `feat/macos-vz-gui-appbundle`) builds `Lima.app`, a minimal
+macOS app bundle wrapping the `limactl` binary. On macOS 26+, the hostagent is automatically
+re-launched inside `Lima.app` via `open -a` when starting a VM with `video.display = "default"`.
+The Window Server accepts the connection; the `VZVirtualMachineView` window appears normally.
+
+The `lima-devl` MacPorts port (blakeports) installs this fork with `Lima.app` to
+`/Applications/MacPorts/Lima.app`.
 
 ```bash
-# Start (from Terminal.app)
-~/Developer/lima/_output/bin/limactl start --foreground macos-26
+# Start VM — Lima.app bundle used automatically on macOS 26+
+limactl start macos-26
 
-# Access (from any terminal)
-~/Developer/lima/_output/bin/limactl shell macos-26
+# Access
+limactl shell macos-26
 ```
 
-**Remaining work**: Build a proper `.app` bundle wrapper to restore the GUI window. See [App Bundle Plan](#app-bundle-plan-for-restoring-gui) below.
+The headless workaround (`canRunGUI()` OS version check) was an interim measure and is no longer
+used. See [Actual Implementation](#actual-implementation) below.
 
 ---
 
@@ -140,49 +148,42 @@ Missing: no GUI/AppKit entitlements, no `Info.plist`, no bundle structure, no La
 
 ---
 
-## App Bundle Plan for Restoring GUI
+## Actual Implementation
 
-To show a VM window on macOS 26, the process creating `VZVirtualMachineView` and calling `[NSApp run]` **must** be a proper `.app` bundle registered with LaunchServices. The `limactl` hostagent should remain a CLI process.
+The implemented approach is simpler than the original XPC plan. Instead of a separate display
+process, `Lima.app` is a minimal bundle whose executable **is** `limactl` itself. The hostagent
+re-launches itself inside the bundle via `open -a` when GUI is needed.
 
 ### Architecture
 
 ```
-limactl hostagent (CLI process)
+limactl start (CLI)
     │
-    ├── Manages VM lifecycle (start, stop, SSH, networking)
-    ├── Owns the VZVirtualMachine instance
-    │
-    └── Spawns: LimaDisplay.app (GUI process)
+    └── detects: WantsGUI && !runningInsideBundle
             │
-            ├── Proper .app bundle with Info.plist
-            ├── Receives VM handle from hostagent
-            ├── Creates VZVirtualMachineView + NSWindow
-            └── Runs [NSApp run] event loop
+            └── open -n -a Lima.app --stdout <log> --stderr <log> --args hostagent ...
+                    │
+                    └── limactl hostagent (re-launched inside Lima.app bundle context)
+                            ├── Window Server connection succeeds
+                            ├── Owns VZVirtualMachine instance
+                            ├── Calls StartGraphicApplication → VZVirtualMachineView window appears
+                            └── Monitored via PID file as normal
 ```
 
-### Communication mechanism: XPC or Mach ports
+`open` exits immediately for `LSUIElement` apps. The hostagent process runs normally; `limactl start`
+monitors it via PID file as it always did.
 
-The `VZVirtualMachine` object lives in the hostagent process. The display app needs to render its framebuffer. Two options:
-
-**Option A — IOSurface sharing (recommended)**
-Virtualization.framework internally uses IOSurface for the framebuffer. The hostagent can extract the IOSurface ID from the `VZMacGraphicsDeviceConfiguration` and pass it to the display app via XPC. The display app renders the IOSurface in a CALayer. This is how UTM works.
-
-**Option B — VZVirtualMachine in the GUI process**
-Move the `VZVirtualMachine` creation into the display app entirely. The hostagent spawns the display app, which creates and owns the VM. The hostagent communicates with the display app via XPC for lifecycle management (stop, pause, resume). This is simpler but means the VM dies if the window is closed.
-
-### Minimal `.app` bundle structure
+### Lima.app bundle structure
 
 ```
-LimaDisplay.app/
-├── Contents/
-│   ├── Info.plist
-│   ├── MacOS/
-│   │   └── LimaDisplay          ← native binary (Swift or ObjC)
-│   └── Resources/
-│       └── MainMenu.nib         ← optional, can be created programmatically
+Lima.app/
+└── Contents/
+    ├── Info.plist          ← CFBundleIdentifier, LSUIElement=true, CFBundleExecutable=limactl
+    └── MacOS/
+        └── limactl         ← copy of the limactl binary
 ```
 
-### Info.plist (minimum required)
+### Info.plist
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -191,17 +192,19 @@ LimaDisplay.app/
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>io.lima-vm.display</string>
+    <string>io.lima-vm.lima</string>
     <key>CFBundleName</key>
-    <string>Lima Display</string>
+    <string>Lima</string>
     <key>CFBundleExecutable</key>
-    <string>LimaDisplay</string>
+    <string>limactl</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>
@@ -210,84 +213,37 @@ LimaDisplay.app/
 </plist>
 ```
 
-### Entitlements for the display app
+`LSUIElement=true` makes Lima an agent app — no Dock icon, no menu bar. The bundle is codesigned
+ad-hoc with the `com.apple.security.virtualization` entitlement already required by the VZ driver.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>com.apple.security.virtualization</key>
-    <true/>
-</dict>
-</plist>
-```
+### Key source files in the fork
 
-### Skeleton Swift implementation
+| File | Role |
+|------|------|
+| `pkg/driver/vz/Info.plist` | Plist template for Lima.app |
+| `pkg/driver/vz/vz_driver_darwin.go` | `canRunGUI()` — detects `.app/Contents/MacOS/` in exec path |
+| `pkg/instance/start_appbundle_darwin.go` | `launchHostAgentInAppBundle()` — calls `open -n -a Lima.app ...` |
+| `pkg/instance/start.go` | Decides whether to re-launch in bundle |
+| `cmd/limactl/main_darwin_gui.go` | `init()` — pins main goroutine to OS thread 0 |
+| `Makefile` | `Lima.app` build target, `APP_BUNDLE_DIR` variable |
 
-```swift
-// LimaDisplay/main.swift
-import Cocoa
-import Virtualization
+### Thread pinning requirement
 
-@main
-class LimaDisplayApp: NSApplication {
-    // Entry point. The app is launched by the hostagent via:
-    //   open -a LimaDisplay.app --args --xpc-service-name <name>
-    // or by NSWorkspace.shared.openApplication(...)
-}
-
-class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: NSWindow!
-    var vmView: VZVirtualMachineView!
-
-    // Option A: receive IOSurface ID via XPC from hostagent
-    // Option B: receive VM configuration via XPC, create VM here
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        // Connect to hostagent's XPC service
-        let connection = NSXPCConnection(serviceName: "io.lima-vm.hostagent")
-        // ... negotiate VM handle or IOSurface ...
-
-        // Create the view and window
-        vmView = VZVirtualMachineView()
-        vmView.capturesSystemKeys = true
-        // vmView.virtualMachine = <received VM>
-
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1920, height: 1200),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentView = vmView
-        window.title = "Lima: macos-26"
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-    }
-}
-```
-
-### Build integration
-
-The display app would be built as part of Lima's `make` target and installed to `_output/share/lima/LimaDisplay.app`. The hostagent would locate it at runtime:
+A second SIGTRAP occurs inside the bundle if the main goroutine is not on thread 0. Go's scheduler
+migrates it to a worker thread before cobra dispatches `hostagent`. Fixed by:
 
 ```go
-// In RunGUI(), instead of calling StartGraphicApplication directly:
-displayApp := filepath.Join(usrShareDir, "LimaDisplay.app")
-cmd := exec.Command("open", "-a", displayApp, "--args",
-    "--xpc-service", xpcServiceName,
-    "--vm-id", vmID,
-)
-cmd.Run()
+// cmd/limactl/main_darwin_gui.go — runs before main()
+func init() {
+    runtime.LockOSThread()
+}
 ```
 
-### Reference implementations
+### Upstream status
 
-- **UTM** (`utmapp/UTM`) — Uses a separate `UTMQemuSystem` process for the hypervisor and an `NSApp`-based frontend for display. Communicates via `QEMULauncher` (XPC). The display renders the VM framebuffer via `MTKView` with IOSurface.
-- **macOS Virtualization.framework sample** (`apple/swift-evolution`) — Apple's sample code creates the `VZVirtualMachine` and `VZVirtualMachineView` in the same `.app` bundle process.
-- **tart** (`cirruslabs/tart`) — Another CLI tool that uses VZ. On macOS 15 it calls `[NSApp run]` from the CLI binary. May also break on macOS 26.
+The fix is implemented in `trodemaster/lima` (`feat/macos-vz-gui-appbundle`). Upstream PRs are
+tracked in `lima-devl/UPSTREAM_PRS.md`. The issue is documented and a comment with root cause
+and fix details has been posted at https://github.com/lima-vm/lima/issues/4743.
 
 ---
 
