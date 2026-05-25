@@ -1,0 +1,31 @@
+# Reference macOS 26 test configuration
+#
+# This mirrors the upstream Lima template://macos-26 exactly, with only
+# the IPSW updated to the 26.5 (25F71) build. Use this to validate patches
+# against a stock Lima configuration without custom provisioning or mounts.
+#
+# Usage:
+#   limactl create --name=macos-26-test ./macos-26-test.yaml
+#   limactl start macos-26-test
+#   limactl remove -f macos-26-test
+
+minimumLimaVersion: "2.1.0"
+
+base:
+- template:_default/mounts
+
+images:
+- location: "https://updates.cdn-apple.com/2026SpringFCS/fullrestores/122-58869/DFB1CEEF-5619-4591-9924-E20DB2C8FED0/UniversalMac_26.5_25F71_Restore.ipsw"
+  arch: "aarch64"
+
+os: Darwin
+arch: aarch64
+vmType: vz
+
+# The installer requires a display device.
+video:
+  display: "default"
+
+message: |
+  The user password for GUI session is stored in the `~/password` file in the guest.
+  Consider changing it after the first login.
