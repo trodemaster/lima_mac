@@ -108,17 +108,33 @@ make build-26 LIMACTL=/path/to/custom/limactl
 
 ## Results
 
-<!-- fill in after test -->
-
-**Date:**  
-**Lima version:**  
-**Outcome (A / B / C):**  
-**Relevant log output:**
+**Date:** 2026-05-24  
+**Lima version:** 2.1.1 (upstream, no Lima.app bundle)  
+**Outcome: A — SIGTRAP crash (app bundle IS required)**
 
 ```
-(paste here)
+[hostagent] SIGTRAP: trace trap
+[hostagent] PC=0x185c584fc m=11 sigcode=0
+[hostagent] signal arrived during cgo execution
+[hostagent] goroutine 1 [syscall, locked to thread]:
+[hostagent] runtime.cgocall(...)
+[hostagent] github.com/Code-Hex/vz/v3._Cfunc_startVirtualMachineWindow(...)
+[hostagent] github.com/Code-Hex/vz/v3.(*VirtualMachine).StartGraphicApplication(...)
+[hostagent] github.com/lima-vm/lima/v2/pkg/driver/vz.(*LimaVzDriver).RunGUI(...)
+[hostagent] github.com/lima-vm/lima/v2/pkg/hostagent.(*HostAgent).Run(...)
 ```
+
+Crash occurs within ~1 second of start, immediately on `startVirtualMachineWindow`.
+The VM itself boots (VZ state changes to `running`) but the hostagent dies before
+SSH is even attempted.
 
 ## Conclusion
 
-<!-- fill in after test -->
+**G2 (macOS app bundle) is confirmed necessary on macOS 26 (Tahoe).**
+
+Upstream lima 2.1.1 crashes with SIGTRAP on `startVirtualMachineWindow` without a
+bundle context. macOS 26 Window Server enforcement is real and present in the current
+upstream release. The upstream user seen running a macOS VM in a window was almost
+certainly on macOS 15 (Sequoia), where no bundle is required.
+
+G2 remains a required upstream contribution. Proceed with G1 (thread pin) → G2 (app bundle) as planned.
