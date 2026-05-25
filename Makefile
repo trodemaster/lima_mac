@@ -4,6 +4,7 @@
 .PHONY: build-26 clean-26 rebuild-26 \
         build-26-beta clean-26-beta rebuild-26-beta \
         build-15 clean-15 rebuild-15 \
+        build-26-test clean-26-test rebuild-26-test \
         status help
 
 # ── Tool paths ────────────────────────────────────────────────────────────────
@@ -27,10 +28,12 @@ SKIP_OS_UPDATE  ?= 0
 INSTANCE_26      := macos-26
 INSTANCE_26_BETA := macos-26-beta
 INSTANCE_15      := macos-15
+INSTANCE_26_TEST := macos-26-test
 
 CONFIG_26      := $(CURDIR)/macos-26.yaml
 CONFIG_26_BETA := $(CURDIR)/macos-26-beta.yaml
 CONFIG_15      := $(CURDIR)/macos-15.yaml
+CONFIG_26_TEST := $(CURDIR)/macos-26-test.yaml
 
 RUNNER_26      := macOS_26
 RUNNER_26_BETA := macOS_26_beta
@@ -122,6 +125,18 @@ clean-15:
 
 rebuild-15: clean-15 build-15
 
+# ── macOS 26 test (patch validation — no provisioning) ────────────────────────
+
+build-26-test:
+	$(LIMACTL) create --tty=false --name=$(INSTANCE_26_TEST) $(CONFIG_26_TEST)
+	$(LIMACTL) start $(INSTANCE_26_TEST)
+
+clean-26-test:
+	-$(LIMACTL) stop -f $(INSTANCE_26_TEST)
+	$(LIMACTL) remove -f $(INSTANCE_26_TEST)
+
+rebuild-26-test: clean-26-test build-26-test
+
 # ── Status and help ───────────────────────────────────────────────────────────
 
 status:
@@ -143,6 +158,10 @@ help:
 	@echo "  build-15        Create, provision, install MacPorts, and register macOS 15 runner"
 	@echo "  clean-15        Deregister runner, stop, and remove macOS 15 VM"
 	@echo "  rebuild-15      Clean then build macOS 15"
+	@echo ""
+	@echo "  build-26-test   Create and start patch-validation VM (no provisioning)"
+	@echo "  clean-26-test   Stop and remove patch-validation VM"
+	@echo "  rebuild-26-test Clean then build patch-validation VM"
 	@echo ""
 	@echo "  status          Show all Lima instance states"
 	@echo "  help            Show this message"
