@@ -33,6 +33,10 @@ vmType: "vz"
 os: "Darwin"
 arch: "aarch64"
 
+containerd:
+  system: false
+  user: false
+
 # ── Resources ──────────────────────────────────────────────────────────────────
 
 # Tune these to match your workload and available host resources.
@@ -99,12 +103,16 @@ vmOpts:
     rosetta:
       enabled: false
       binfmt: false
+    suppressFirstLoginSetup: {}
     guestPatch:
         tccPermissions:
          - preset: sshd-full-disk-access
          - preset: lima-guestagent-full-disk-access
          - preset: terminal-accessibility
-         - preset: cliclick-accessibility
+         - service: kTCCServiceAccessibility
+           client: /opt/local/bin/cliclick
+           clientType: path
+           authValue: allow
 
 # Nested virtualisation lets you run another hypervisor inside this VM.
 # Requires Apple M3 or later.
