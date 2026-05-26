@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skill
+
+Use the `/lima-mac` skill (`.claude/skills/lima-mac/SKILL.md`) when working on VM builds, debugging provisioning failures, inspecting TCC databases, or any Lima VM lifecycle task. It captures techniques that are not obvious from reading the code: disk mounting, TCC DB schema, common regressions, `suppressFirstLoginSetup` requirement, and configure.sh subcommand structure.
+
 ## What this repo does
 
 Lima configurations and shell scripts for running macOS guest VMs on Apple Silicon. Three VM targets are maintained: `macos-26` (Tahoe release), `macos-26-beta` (beta track), and `macos-15` (Sequoia N-1). The VMs serve as GitHub Actions runners for [blakeports](https://github.com/trodemaster/blakeports) CI.
