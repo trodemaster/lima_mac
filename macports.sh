@@ -42,22 +42,22 @@ install_clt() {
 
     log_info "Installing Xcode Command Line Tools..."
     # softwareupdate can be locked by a post-OS-update daemon for several minutes
-    # after a restart. Retry the listing step up to 6 times (5 min total).
+    # after a restart. Retry the listing step up to 12 times (11 min total).
     local CMDLINE_TOOLS=""
-    for attempt in 1 2 3 4 5 6; do
+    for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
         touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-        CMDLINE_TOOLS=$(softwareupdate -l 2>&1 | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
+        CMDLINE_TOOLS=$(softwareupdate -l 2>&1 | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //') || true
         if [[ -n "$CMDLINE_TOOLS" ]]; then
             break
         fi
         rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-        if [[ $attempt -lt 6 ]]; then
-            log_warn "softwareupdate busy or CLT not listed yet (attempt $attempt/6), retrying in 60s..."
+        if [[ $attempt -lt 12 ]]; then
+            log_warn "softwareupdate busy or CLT not listed yet (attempt $attempt/12), retrying in 60s..."
             sleep 60
         fi
     done
     if [[ -z "$CMDLINE_TOOLS" ]]; then
-        log_error "Could not find Command Line Tools in softwareupdate list after 6 attempts."
+        log_error "Could not find Command Line Tools in softwareupdate list after 12 attempts."
         log_error "Check network connectivity, then re-run this script."
         exit 1
     fi
