@@ -241,11 +241,51 @@ When refactoring B1/B2 patches in `lima-devl`:
 
 ---
 
+## macports.sh — Known Gotchas
+
+### `set -euo pipefail` + grep exit codes
+
+`grep` returns exit code 1 when it finds no matches. Under `set -euo pipefail`, this kills the script immediately — even inside a variable assignment. The CLT retry loop looks like:
+
+```bash
+CMDLINE_TOOLS=$(softwareupdate -l 2>&1 | grep "\*.*Command Line" | ...) || true
+```
+
+The `|| true` is **required**. Without it, when softwareupdate hasn't listed CLT yet (returns no matching line), grep exits 1, the script dies, and the retry loop never runs. This was a regression introduced when retries were added without accounting for pipefail.
+
+**Rule**: Any pipeline using `grep` (or `awk`, `sed`, etc.) that may produce no output needs `|| true` when assigned in pipefail scripts.
+
+### softwareupdate timing after macOS installs
+
+After a fresh macOS install or after `softwareupdate --install --all --restart` completes, the softwareupdate daemon can be locked by a post-install daemon for several minutes. During this window, `softwareupdate -l` prints an error like:
+
+```
+Scan finished with error: Error Domain=SUMacControllerError Code=7507 
+"[SUMacControllerErrorAccessRequestDenied=7507] Access request was denied"
+```
+
+**This error is benign** — the download and install still proceed normally. The error is from the listing/scan phase being blocked by a concurrent process, but the actual install request goes through.
+
+The retry loop in `macports.sh` uses 12 attempts × 60s (11 min total) to handle this window. If CLT isn't listed yet on the first attempt, it retries. If CLT is listed but the scan also emits the error, the install still works — `softwareupdate -i "$CMDLINE_TOOLS"` doesn't go through the blocked scan path.
+
+### macOS OS update timing
+
+A typical macOS minor update (e.g., 15.6.1 → 15.7.7) takes roughly 8 minutes to download + install + reboot. `os-update.sh` handles the full cycle:
+1. Detects available updates via `softwareupdate -l`
+2. Runs `softwareupdate --install --all --restart` (via expect for password)
+3. Removes SSH service from bootstrap to force Lima to wait for VM to come back online
+4. Waits 2 min then polls for SSH return (up to 15 min)
+5. Marks autologin reboot needed
+
+After the OS update, **autologin is cleared by macOS** — `autologin-reboot.sh` re-applies it via kcpassword + screensaver settings and reboots.
+
+---
+
 ## Checking Build Progress
 
 ```bash
 # Monitor a running background build
-tail -f /tmp/rebuild-26c.log
+tail -f /tmp/rebuild-26.log   # or rebuild-15.log
 
 # Screenshot the VM display to see GUI state
 limactl screenshot macos-26 /tmp/vm-26.png && open /tmp/vm-26.png

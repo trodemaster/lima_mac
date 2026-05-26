@@ -22,6 +22,10 @@ os: Darwin
 arch: aarch64
 vmType: vz
 
+containerd:
+  system: false
+  user: false
+
 # The installer requires a display device.
 video:
   display: "default"
