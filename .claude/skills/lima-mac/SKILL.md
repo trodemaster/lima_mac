@@ -13,43 +13,53 @@ This repo manages Lima macOS guest VMs (`macos-26`, `macos-27-beta`, `macos-15`)
 
 ## SSH Access to VMs
 
-Each Lima VM has an SSH config at `~/.lima/<name>/ssh.config`. Use it directly to run commands or copy files without going through `limactl shell`.
+**Prefer `limactl shell` for running commands** — it's the native Lima interface and consistent with the Makefile. Use direct `ssh`/`scp` only when you need to copy files (virtiofs cache workaround) or when `limactl` itself is unavailable.
+
+Both require **`dangerouslyDisableSandbox: true`** when run via Claude's Bash tool — `limactl` uses Unix sockets and `ssh` accesses identity files outside the sandbox write paths.
+
+### limactl shell (preferred for commands)
 
 ```bash
 # Interactive shell
-ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta
+limactl shell macos-27-beta
 
 # Run a single command
-ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'sw_vers'
+limactl shell macos-27-beta -- sw_vers
 
-# Run with env vars (useful for passing config to scripts)
-ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta \
-    'XCODE_XIP=Xcode_27_beta.xip bash ~/developertools.sh'
+# Run a script from the virtiofs mount
+limactl shell macos-27-beta -- /Volumes/lima_mac/macports.sh
 
-# Copy a file into the VM (bypasses virtiofs cache — see below)
+# Pass env vars
+limactl shell macos-27-beta -- env XCODE_XIP=Xcode_27_beta.xip /Volumes/lima_mac/developertools.sh
+```
+
+### Direct SSH (for file copies and virtiofs cache bypass)
+
+Each Lima VM has an SSH config at `~/.lima/<name>/ssh.config`. The host alias is always `lima-<instance-name>`.
+
+```bash
+# Copy a file into the VM (bypasses virtiofs cache)
 scp -F ~/.lima/macos-27-beta/ssh.config \
     /Users/blake/Developer/lima_mac/macports.sh \
     lima-macos-27-beta:~/macports.sh
+
+# Run the copied file
+ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'bash ~/macports.sh'
 
 # Copy a file out of the VM
 scp -F ~/.lima/macos-27-beta/ssh.config \
     lima-macos-27-beta:~/some-log.txt /tmp/some-log.txt
 ```
 
-The SSH host alias is always `lima-<instance-name>` (hyphens preserved). The config file has the current port, identity files, and known-hosts bypass already set.
+### When to use each
 
-**Requires `dangerouslyDisableSandbox: true`** — `limactl` uses Unix sockets that the sandbox blocks.
-
-### limactl shell vs direct SSH
-
-| | `limactl shell <name> -- cmd` | `ssh -F ... lima-<name> 'cmd'` |
-|--|--|--|
-| Sandbox | blocked (Unix socket) | works |
-| Env vars | pass with `env VAR=val cmd` | inline in the command string |
-| Interactive | yes | yes |
-| File copy | no | `scp -F ...` |
-
-Use `limactl shell` in Makefile targets (it handles the socket via the host agent); use direct SSH for interactive debugging.
+| Scenario | Use |
+|----------|-----|
+| Run a script or command | `limactl shell <name> -- cmd` |
+| Pass env vars to a script | `limactl shell <name> -- env VAR=val cmd` |
+| Copy a file into the VM | `scp -F ~/.lima/<name>/ssh.config` |
+| Script edit not showing via virtiofs | SCP to `~/` then run from there |
+| limactl not working / debugging | `ssh -F ~/.lima/<name>/ssh.config lima-<name>` |
 
 ---
 
