@@ -7,7 +7,49 @@ description: Techniques for managing, debugging, and inspecting Lima macOS VMs i
 
 ## Overview
 
-This repo manages Lima macOS guest VMs (`macos-26`, `macos-26-beta`, `macos-15`) used as GitHub Actions runners for blakeports CI. Key knowledge for debugging and maintaining these VMs.
+This repo manages Lima macOS guest VMs (`macos-26`, `macos-27-beta`, `macos-15`) used as GitHub Actions runners for blakeports CI. Key knowledge for debugging and maintaining these VMs.
+
+---
+
+## SSH Access to VMs
+
+Each Lima VM has an SSH config at `~/.lima/<name>/ssh.config`. Use it directly to run commands or copy files without going through `limactl shell`.
+
+```bash
+# Interactive shell
+ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta
+
+# Run a single command
+ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'sw_vers'
+
+# Run with env vars (useful for passing config to scripts)
+ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta \
+    'XCODE_XIP=Xcode_27_beta.xip bash ~/developertools.sh'
+
+# Copy a file into the VM (bypasses virtiofs cache — see below)
+scp -F ~/.lima/macos-27-beta/ssh.config \
+    /Users/blake/Developer/lima_mac/macports.sh \
+    lima-macos-27-beta:~/macports.sh
+
+# Copy a file out of the VM
+scp -F ~/.lima/macos-27-beta/ssh.config \
+    lima-macos-27-beta:~/some-log.txt /tmp/some-log.txt
+```
+
+The SSH host alias is always `lima-<instance-name>` (hyphens preserved). The config file has the current port, identity files, and known-hosts bypass already set.
+
+**Requires `dangerouslyDisableSandbox: true`** — `limactl` uses Unix sockets that the sandbox blocks.
+
+### limactl shell vs direct SSH
+
+| | `limactl shell <name> -- cmd` | `ssh -F ... lima-<name> 'cmd'` |
+|--|--|--|
+| Sandbox | blocked (Unix socket) | works |
+| Env vars | pass with `env VAR=val cmd` | inline in the command string |
+| Interactive | yes | yes |
+| File copy | no | `scp -F ...` |
+
+Use `limactl shell` in Makefile targets (it handles the socket via the host agent); use direct SSH for interactive debugging.
 
 ---
 

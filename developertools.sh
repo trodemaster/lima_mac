@@ -62,13 +62,13 @@ install_xcode() {
     cd "${tmp_dir}"
     xip --expand "${xip_path}"
     local xcode_app
-    xcode_app=$(ls -d Xcode*.app 2>/dev/null | head -1)
+    xcode_app=$(ls -d "${tmp_dir}"/Xcode*.app 2>/dev/null | head -1)
     if [[ -z "${xcode_app}" ]]; then
         log_warn "No Xcode.app found after expanding ${XCODE_XIP} — skipping"
         cd /; rm -rf "${tmp_dir}"
         return 0
     fi
-    log_info "Installing ${xcode_app} → /Applications/Xcode.app..."
+    log_info "Installing $(basename "${xcode_app}") → /Applications/Xcode.app..."
     sudo mv "${xcode_app}" /Applications/Xcode.app
     sudo xcode-select -s /Applications/Xcode.app
     sudo xcodebuild -license accept
