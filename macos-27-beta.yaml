@@ -1,4 +1,4 @@
-# Lima configuration for macOS 26 Beta (Tahoe) guest VM
+# Lima configuration for macOS 27 Beta guest VM
 #
 # Requirements:
 #   - Apple Silicon Mac (aarch64) — macOS guests only run on native arch via VZ
@@ -6,8 +6,8 @@
 #   - macOS 13.5+ host (for Virtualization.framework / vmType: vz)
 #
 # Usage:
-#   limactl create --name=macos-26-beta ./macos-26-beta.yaml
-#   limactl start macos-26-beta
+#   limactl create --name=macos-27-beta ./macos-27-beta.yaml
+#   limactl start macos-27-beta
 #
 # Apple Software License Agreement applies:
 #   https://www.apple.com/legal/sla/
@@ -25,7 +25,7 @@ minimumLimaVersion: "2.1.0"
 # ── Image ──────────────────────────────────────────────────────────────────────
 
 images:
-- location: "https://updates.cdn-apple.com/2026SpringSeed/fullrestores/122-21852/BDB79369-54B9-4326-A5A4-29328983BE3A/UniversalMac_26.5_25F5042g_Restore.ipsw"
+- location: "https://updates.cdn-apple.com/2026SummerSeed/fullrestores/122-99636/BB03A927-E303-44C1-BB94-6197F130A163/UniversalMac_27.0_26A5353q_Restore.ipsw"
   arch: "aarch64"
 
 # macOS guests require VZ (Apple Virtualization.framework) — QEMU is not supported
@@ -158,13 +158,13 @@ provision:
 
 # NOTE: Automatic port forwarding is NOT supported for macOS guests.
 # To reach a port running in the guest, either:
-#   a) Use the vzNAT IP directly (find it with `limactl shell macos-26-beta ipconfig getifaddr en0`)
-#   b) Set up a manual tunnel: ssh -F ~/.lima/macos-26-beta/ssh.config lima-macos-26-beta -L 8080:localhost:8080 -N
+#   a) Use the vzNAT IP directly (find it with `limactl shell macos-27-beta ipconfig getifaddr en0`)
+#   b) Set up a manual tunnel: ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta -L 8080:localhost:8080 -N
 
 # ── Message shown after `limactl start` ───────────────────────────────────────
 
 message: |
-  macOS 26 Beta VM is ready.
+  macOS 27 Beta VM is ready.
 
   SSH into the guest:
     limactl shell {{.Name}}

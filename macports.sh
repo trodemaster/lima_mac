@@ -1,13 +1,11 @@
 #!/bin/bash
 # MacPorts Installation and Configuration Script for Lima macOS VMs
 #
-# Installs Xcode Command Line Tools and MacPorts, then configures MacPorts
-# for use as a GitHub Actions runner with the blakeports overlay.
+# Installs MacPorts and configures it for use as a GitHub Actions runner
+# with the blakeports overlay.
 #
-# Run this script once after VM creation, before registering the runner:
-#   make run-26
-#   make macports-26   ← calls: limactl shell macos-26 /Volumes/lima_mac/macports.sh
-#   make register-26
+# Run developertools.sh first to install Xcode / CLT, then this script:
+#   make build-26   (Makefile runs both in order)
 #
 # This script is idempotent — safe to re-run.
 # It is shared into the VM via the lima_mac virtiofs mount at /Volumes/lima_mac/.
@@ -28,46 +26,7 @@ log_info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
-# ── Step 1: Xcode Command Line Tools ──────────────────────────────────────────
-#
-# xcode-select --install opens a GUI dialog and cannot be used over SSH.
-# The softwareupdate approach below is the standard headless method on macOS 15+.
-# (Confirmed from xcode-select(1) manpage: --install "Opens a user interface dialog".)
-
-install_clt() {
-    if [[ -d /Library/Developer/CommandLineTools ]]; then
-        log_info "Xcode Command Line Tools already installed — skipping"
-        return 0
-    fi
-
-    log_info "Installing Xcode Command Line Tools..."
-    # softwareupdate can be locked by a post-OS-update daemon for several minutes
-    # after a restart. Retry the listing step up to 12 times (11 min total).
-    local CMDLINE_TOOLS=""
-    for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-        touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-        CMDLINE_TOOLS=$(softwareupdate -l 2>&1 | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //') || true
-        if [[ -n "$CMDLINE_TOOLS" ]]; then
-            break
-        fi
-        rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-        if [[ $attempt -lt 12 ]]; then
-            log_warn "softwareupdate busy or CLT not listed yet (attempt $attempt/12), retrying in 60s..."
-            sleep 60
-        fi
-    done
-    if [[ -z "$CMDLINE_TOOLS" ]]; then
-        log_error "Could not find Command Line Tools in softwareupdate list after 12 attempts."
-        log_error "Check network connectivity, then re-run this script."
-        exit 1
-    fi
-    log_info "Installing: $CMDLINE_TOOLS"
-    softwareupdate -i "$CMDLINE_TOOLS" --verbose
-    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    log_info "Xcode Command Line Tools installed"
-}
-
-# ── Step 2: MacPorts ───────────────────────────────────────────────────────────
+# ── Step 1: MacPorts ───────────────────────────────────────────────────────────
 #
 # macOS 15 (Sequoia) and earlier: use the official binary PKG installer.
 # macOS 16+ (e.g. macOS 26 Tahoe): no official PKG exists yet; build from source.
@@ -96,7 +55,10 @@ install_macports() {
         | grep "MacPorts-.*-${MACOS_VERSION}-.*\.pkg" \
         | grep -v '\.asc' \
         | head -1 \
-        | cut -d'"' -f4)
+        | cut -d'"' -f4 || true)
+    # `|| true`: under `set -euo pipefail`, a no-match grep (e.g. no published PKG
+    # for a brand-new macOS like 27) would otherwise abort the script. An empty
+    # result is valid here — it falls through to the build-from-source branch.
 
     if [[ -n "$MACPORTS_PKG_NAME" ]]; then
         MACPORTS_PKG_URL="https://github.com/macports/macports-base/releases/download/${PORT_LATEST_RELEASE}/${MACPORTS_PKG_NAME}"
@@ -219,11 +181,11 @@ main() {
     log_info "Starting MacPorts setup for Lima runner..."
     log_info "macOS $(sw_vers -productVersion) ($(sw_vers -buildVersion)) — $(uname -m)"
 
-    install_clt
     install_macports
     configure_macports
     selfupdate_macports
-    sudo /opt/local/bin/port install cliclick
+    sudo /opt/local/bin/port install cliclick || \
+        log_warn "cliclick install failed (port requires full Xcode, not available on beta OS) — skipping"
     configure_shell_profile
 
     log_info "MacPorts setup complete!"

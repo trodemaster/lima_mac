@@ -44,6 +44,23 @@ diskutil image detach ~/.lima/macos-26/disk
 
 TCC (Transparency, Consent, Control) controls macOS privacy permissions. Lima pre-seeds entries via B2 disk patching before first boot.
 
+### Critical: TCC.db cannot be read from a running VM
+
+SIP (System Integrity Protection) blocks all access to TCC databases on a live booted system — even with `sudo`, `sqlite3` returns `authorization denied`. This is true regardless of whether sshd has Full Disk Access pre-seeded. **To inspect TCC entries you must stop the VM and mount the disk directly** (see Disk Inspection Technique above).
+
+```bash
+# WRONG — always fails on a running VM:
+limactl shell macos-26 -- sudo sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" "SELECT ..."
+# Error: unable to open database "...TCC.db": authorization denied
+
+# CORRECT — stop first, then mount disk and query offline:
+limactl stop macos-26
+diskutil image attach ~/.lima/macos-26/disk
+# mount Data volume, then:
+sqlite3 /Volumes/Data/Library/Application\ Support/com.apple.TCC/TCC.db \
+  "SELECT service, client, client_type, auth_value, auth_reason FROM access ORDER BY service, client;"
+```
+
 ### Database locations on mounted disk
 
 ```bash
@@ -163,6 +180,24 @@ vmOpts:
 ```
 
 This activates B1 fakecloudinit: cidata.go emits `suppress_first_login_setup: true` into user-data; fakecloudinit reads it and calls `suppressFirstLoginScreens()` from `createUser()` on first boot, writing the SetupAssistant plist with `MiniBuddyLaunchReason: 0`.
+
+---
+
+## virtiofs Mount Caching
+
+The `/Volumes/lima_mac/` virtiofs share inside the VM caches files. **Edits made to files on the host are not immediately visible inside the guest.** Do not verify a script edit by re-reading it from `/Volumes/lima_mac/` inside the VM — the guest may still see the old version.
+
+**Workaround**: SCP the file directly to the guest home directory and run it from there:
+
+```bash
+scp -F ~/.lima/macos-27-beta/ssh.config \
+    /Users/blake/Developer/lima_mac/macports.sh \
+    lima-macos-27-beta:~/macports.sh
+
+ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'bash ~/macports.sh'
+```
+
+This bypasses the virtiofs cache entirely. After the VM is restarted the cache clears and the mount reflects the current host state.
 
 ---
 
@@ -298,6 +333,215 @@ limactl shell macos-26 -- defaults read /Library/Preferences/com.apple.SetupAssi
 limactl shell macos-26 -- sqlite3 "/Library/Application Support/com.apple.TCC/TCC.db" \
   "SELECT service, client, client_type, auth_value FROM access ORDER BY service, client;"
 ```
+
+---
+
+## MacPorts Patch Fix Workflow
+
+When a blakeports CI run fails due to lint errors in a B1/B2 patch, the fix cycle is:
+
+### 1. Create a working branch and apply the failing patch
+
+```bash
+git -C ~/Developer/lima-devl checkout -b b1-lint-fix master
+patch -p0 < ~/Developer/blakeports/sysutils/lima-devl/files/patch-05-b1-fakecloudinit.diff
+```
+
+If the patch fails on a file that was already modified by an earlier patch (e.g., `lima_yaml.go` fails for B2 because B1 changed alignment), apply the failing hunk manually.
+
+### 2. Fix the issue, then run gofmt
+
+After fixing the code:
+
+```bash
+gofmt -w <changed-files>          # normalize ALL changed files
+gofmt -l <changed-files>          # must print nothing (clean)
+```
+
+**Never skip `gofmt -w` when regenerating patches.** Manually-crafted struct field alignment is almost always wrong. `gofmt` normalizes it deterministically.
+
+### 3. Generate separate B1 and B2 patches using git commits
+
+Because B1 and B2 both modify `lima_yaml.go`, patches must be generated from git commit ranges, not just file diffs:
+
+```bash
+# Commit B1 state (after applying B1 and running gofmt)
+git -C ~/Developer/lima-devl add -A && git commit -m "temp: B1 state" --no-gpg-sign
+
+# Apply B2 on top (fix any rejects manually, run gofmt)
+patch -p0 < ~/Developer/blakeports/sysutils/lima-devl/files/patch-06-b2-tcc.diff
+git -C ~/Developer/lima-devl add -A && git commit -m "temp: B2 state" --no-gpg-sign
+
+# Generate patches from commit ranges
+git -C ~/Developer/lima-devl diff --no-prefix master HEAD~1 \
+  > ~/Developer/blakeports/sysutils/lima-devl/files/patch-05-b1-fakecloudinit.diff
+
+git -C ~/Developer/lima-devl diff --no-prefix HEAD~1 HEAD \
+  > ~/Developer/blakeports/sysutils/lima-devl/files/patch-06-b2-tcc.diff
+```
+
+### 4. Increment rev and push
+
+```tcl
+set b1_rev  5   # increment when patch is regenerated
+set b2_rev  5
+```
+
+Push blakeports to trigger the CI. Verify no `noctx` or `gci` errors appear.
+
+### B2 patch apply failure — VZOpts alignment
+
+B2 fails its `lima_yaml.go` hunk after a B1 gofmt fix because B2 was generated with the old (unformatted) alignment as context. **Workaround**: apply the failing hunk manually by adding the `GuestPatch VZGuestPatch` field to VZOpts, run `gofmt -w`, then regenerate B2 from the B1 commit as described above.
+
+---
+
+## Upstream PR — Linter Requirements (golangci-lint v2.12.2)
+
+Lima upstream CI runs `golangci-lint` on `ubuntu-24.04`, `windows-2025`, and **`macos-26`** (the strictest — CGo only compiles on darwin). All three must pass before merging.
+
+### Rules that catch most contributors off-guard
+
+| Linter | Rule | Fix |
+|--------|------|-----|
+| `revive` | `fmt.Errorf("static string")` with no `%` verbs | Use `errors.New("static string")` |
+| `unconvert` | `unsafe.Pointer(x)` where `x` is already `unsafe.Pointer` | Drop the cast: `C.free(ptr)` |
+| `gci` | Import block formatting | Blank line required between `import "C"` and regular imports; **no inline comments on import lines** (gci strips them, causing a diff). See note below — gci errors often indicate a `gofmt` violation, not an import ordering issue. |
+| `gocritic dupImport` | CGo + `unsafe` in same file | See CGo section below |
+| `gofmt` / `gofumpt` | General Go formatting | Run `gofmt -w` (then `gofumpt -w`) on ALL changed files before committing or regenerating patches |
+| `noctx` | `os/exec.Command` without context | Always use `exec.CommandContext(ctx, ...)` — even for short system queries like `sw_vers`. Functions that call exec must accept a `ctx context.Context` parameter. |
+| `nolintlint` | Unused `//nolint` directives | Only add `//nolint` when the linter actually fires |
+
+**Never modify `.golangci.yml`** to work around issues in a PR — upstream will reject it. Fix the code, not the config.
+
+### Diagnosing "File is not properly formatted (gci)"
+
+When golangci-lint reports `gci` at a line number that is clearly NOT in an import block (e.g., line 168 in a 500-line file), the real issue is almost always a `gofmt` violation — over-aligned struct fields or extra spaces in a struct literal. Diagnose with:
+
+```bash
+gofmt -l pkg/cidata/cidata.go pkg/limatype/lima_yaml.go   # lists files that would change
+gofmt -d pkg/cidata/cidata.go                              # shows exact diff
+gofmt -w pkg/cidata/cidata.go                              # apply fix
+```
+
+Common root causes from patch regeneration:
+- **Extra trailing spaces in struct field alignment**: manually adding spaces to align a longer field (`Rosetta                  Rosetta`) — gofmt uses a specific algorithm and will remove one space
+- **Extra alignment in struct literals**: `Param:          instConfig.Param,` — gofmt normalizes key spacing in struct literals to remove hand-added alignment
+
+The fix is always `gofmt -w`, not editing the `.golangci.yml` or adding `//nolint` directives.
+
+### Build tags
+
+Only add `//go:build darwin` (or `darwin && !no_vz`) to files that actually use darwin-specific imports or C code. Command files (`cmd/limactl/`) that merely call a function available on all platforms must **not** have a build tag — or the function becomes undefined on Linux/Windows and `go build ./...` fails.
+
+The pattern used by Lima: put the cross-platform command file without a tag, and put platform-specific implementation files with `_darwin.go` suffix (which Go's file naming applies automatically).
+
+### Transient upstream CI failures — do not chase
+
+These CI jobs in `lima-vm/lima` fail intermittently due to infrastructure issues, not code:
+
+| Job | Cause | Action |
+|-----|-------|--------|
+| `Lints` | Link checker can't reach `lima-vm.io/docs/` (network error from CI runner) | Ignore — re-run will pass |
+| `Windows tests (QEMU)` | TLS handshake timeout fetching Go module zip from `proxy.golang.org` | Ignore — re-run will pass |
+
+Check job logs before chasing: `gh api repos/lima-vm/lima/actions/jobs/<id>/logs | grep -E "error|Error" | head -10`. If the error is a network/TLS failure (not a compile or test failure), it's a flake.
+
+### DCO
+
+Every commit to `lima-vm/lima` requires a `Signed-off-by:` trailer. Use `git commit -s` or `git commit --amend --signoff` to add it.
+
+---
+
+## CGo Patterns — Passing All Linters
+
+When writing CGo code in the `pkg/driver/vz/` package:
+
+### Import structure (required by gci + gocritic)
+
+```go
+*/
+import "C"
+
+import (
+	"errors"
+	// other stdlib
+)
+```
+
+- `import "C"` **must** immediately follow the closing `*/` of the C preamble — no blank line between `*/` and `import "C"`
+- A blank line **is required** between `import "C"` and the regular import block (gci enforces this)
+- Do **not** add inline comments on import lines — gci rewrites the file without them, causing a format diff
+
+### Avoiding the gocritic dupImport false positive
+
+`gocritic` flags `import "C"` + `import "unsafe"` in the same file as `dupImport` (it treats CGo's pseudo-package as implicitly providing `unsafe`). 
+
+**Fix**: avoid `import "unsafe"` entirely by defining a typed C helper for any `void*` calls:
+
+```c
+// In the CGo preamble:
+static void freeCString(char *s) { free(s); }
+```
+
+```go
+// In Go code — no unsafe.Pointer needed:
+cuti := C.CString(uti)
+defer C.freeCString(cuti)   // ← typed char*, not unsafe.Pointer
+```
+
+`C.free(ptr)` (where `ptr` is already `unsafe.Pointer` from a CGo return) does NOT need `unsafe.Pointer(ptr)` — that's the `unconvert` violation. Only `*C.char` → `void*` conversions need a helper.
+
+---
+
+## Driver Optional Interface — Error Architecture
+
+When adding an optional interface to the driver (like `Screenshotter`), follow this pattern so HTTP status codes are set correctly:
+
+**1. Define sentinel errors in `pkg/driver/driver.go`**
+```go
+var ErrDriverNotScreenshotter = errors.New("driver does not support screenshots")
+var ErrNoDisplay = errors.New("no display configured")
+```
+
+**2. Wrap at the source with `%w`**
+```go
+// hostagent.go — driver doesn't implement the interface
+return nil, fmt.Errorf("driver %q: %w", name, driver.ErrDriverNotScreenshotter)
+
+// screenshot_darwin.go — display not configured
+return nil, fmt.Errorf("%w (set video.display to ...", driver.ErrNoDisplay)
+```
+
+**3. Use `errors.Is` in the HTTP server handler**
+```go
+switch {
+case errors.Is(err, driver.ErrDriverNotScreenshotter):
+    ec = http.StatusNotImplemented
+case errors.Is(err, driver.ErrNoDisplay):
+    ec = http.StatusUnprocessableEntity
+}
+```
+
+**Never use `strings.Contains(err.Error(), "...")` for error classification** — reviewers will ask for `errors.Is`/`errors.As` immediately.
+
+---
+
+## limactl screenshot — Architecture Reference
+
+Added in PR #5098. Useful reference for future display/GUI driver features.
+
+```
+limactl screenshot INSTANCE [-o output.png]
+  → hostagent client (HTTP GET /v1/screenshot?format=png)
+  → hostagent server GetScreenshot handler
+  → HostAgent.Screenshot(ctx, format)
+  → driver.(Screenshotter).CaptureScreenshot(format)   ← optional interface
+  → VZ: captureWindowImageBytes() C/ObjC via AppKit/CoreGraphics
+```
+
+- Format is inferred from output extension (`.png` or `.bmp`); any other extension is an error
+- HTTP status mapping: `404` = hostagent too old, `501` = driver doesn't support it, `422` = no display configured
+- Only VZ drivers with `video.display: default` (or `vz`) implement `Screenshotter`; QEMU returns `501`
 
 ---
 

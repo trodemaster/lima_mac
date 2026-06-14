@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "../dotfiles"
+		},
+		{
+			"path": "../lima-devl"
 		}
 	],
 	"settings": {}
