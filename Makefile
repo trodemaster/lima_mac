@@ -27,6 +27,10 @@ SKIP_OS_UPDATE  ?= 0
 # If unset, Xcode install is skipped — CLT will still be installed.
 XCODE_XIP       ?=
 
+# Set to 1 to skip cliclick port install (useful on beta OS where it pulls a long
+# dependency chain from source — takes 30-60 min with no binary archives available).
+SKIP_CLICLICK   ?= 0
+
 # ── Instance definitions ──────────────────────────────────────────────────────
 
 INSTANCE_26      := macos-26
@@ -66,7 +70,7 @@ build-26:
 	$(LIMACTL) start $(INSTANCE_26)
 	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_26) $(LIMACTL)
 	$(LIMACTL) shell $(INSTANCE_26) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
-	$(LIMACTL) shell $(INSTANCE_26) /Volumes/lima_mac/macports.sh
+	$(LIMACTL) shell $(INSTANCE_26) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
 	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_26) $(LIMACTL)
 	$(call wait_mount,$(INSTANCE_26))
 	$(LIMACTL) shell $(INSTANCE_26) /Volumes/lima_mac/configure.sh wallpaper
@@ -91,7 +95,7 @@ build-27-beta:
 	$(LIMACTL) start $(INSTANCE_27_BETA)
 	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_27_BETA) $(LIMACTL)
 	$(LIMACTL) shell $(INSTANCE_27_BETA) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
-	$(LIMACTL) shell $(INSTANCE_27_BETA) /Volumes/lima_mac/macports.sh
+	$(LIMACTL) shell $(INSTANCE_27_BETA) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
 	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_27_BETA) $(LIMACTL)
 	$(call wait_mount,$(INSTANCE_27_BETA))
 	$(LIMACTL) shell $(INSTANCE_27_BETA) /Volumes/lima_mac/configure.sh wallpaper
@@ -116,7 +120,7 @@ build-15:
 	$(LIMACTL) start $(INSTANCE_15)
 	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_15) $(LIMACTL)
 	$(LIMACTL) shell $(INSTANCE_15) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
-	$(LIMACTL) shell $(INSTANCE_15) /Volumes/lima_mac/macports.sh
+	$(LIMACTL) shell $(INSTANCE_15) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
 	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_15) $(LIMACTL)
 	$(call wait_mount,$(INSTANCE_15))
 	$(LIMACTL) shell $(INSTANCE_15) /Volumes/lima_mac/configure.sh wallpaper
@@ -178,4 +182,5 @@ help:
 	@echo "  LIMA_APP_BUNDLE=$(LIMA_APP_BUNDLE)"
 	@echo "  GITHUB_OWNER=$(GITHUB_OWNER)"
 	@echo "  GITHUB_REPO=$(GITHUB_REPO)"
-	@echo "  SKIP_OS_UPDATE=$(SKIP_OS_UPDATE)  (set to 1 to skip OS update check)"
+	@echo "  SKIP_OS_UPDATE=$(SKIP_OS_UPDATE)  (set to 1 to skip OS update check)
+  SKIP_CLICLICK=$(SKIP_CLICLICK)    (set to 1 to skip cliclick port install)"
