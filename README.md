@@ -22,7 +22,7 @@ lima_mac/
   Makefile           ← VM lifecycle + MacPorts install + runner registration
   configure.sh       ← in-guest setup at first boot (password, auto-login, SSH keys)
   macports.sh        ← install Xcode CLT + MacPorts in the VM (run once, explicit)
-  .envrc             ← local secrets (gitignored, see .envrc.template)
+  .envrc             ← local secrets (gitignored, copy from example.envrc)
   macos-26.yaml      ┐
   macos-26-beta.yaml ├─ Lima VM configurations
   macos-15.yaml      ┘
@@ -176,7 +176,7 @@ make macos-15 && make run-15 && make macports-15 && make register-15
 ## Secrets setup
 
 ```bash
-cp .envrc.template .envrc
+cp example.envrc .envrc
 # edit .envrc — set at minimum MACOS_PASSWORD
 direnv allow     # or: source .envrc
 ```
@@ -228,7 +228,7 @@ make register-26 GHRUNNER=/path/to/ghrunner
 
 ## Environment variables (`.envrc`)
 
-Copy `.envrc.template` to `.envrc` (gitignored). Variables are read by `configure.sh`
+Copy `example.envrc` to `.envrc` (gitignored). Variables are read by `configure.sh`
 inside the VM at first boot via the shared volume mount.
 
 | Variable        | Default | Purpose                                                       |

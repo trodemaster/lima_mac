@@ -2,6 +2,10 @@
 .env
 .envrc
 
+# MDM runtime state and secrets
+mdm/data/
+mdm/launchd/*.plist
+
 # macOS system files
 .DS_Store
 .AppleDouble

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+
+        <!-- SCEP payload: device requests identity cert from scepserver -->
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.security.scep</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.lima-mac.mdm.scep</string>
+            <key>PayloadUUID</key>
+            <string>%%SCEP_PAYLOAD_UUID%%</string>
+            <key>PayloadDisplayName</key>
+            <string>lima-mac MDM Identity</string>
+            <key>PayloadContent</key>
+            <dict>
+                <key>URL</key>
+                <string>http://%%MDM_HOST_IP%%:%%MDM_SCEP_PORT%%/scep</string>
+                <key>Name</key>
+                <string>com.lima-mac.mdm</string>
+                <key>Subject</key>
+                <array>
+                    <array>
+                        <array>
+                            <string>O</string>
+                            <string>lima-mac</string>
+                        </array>
+                    </array>
+                    <array>
+                        <array>
+                            <string>CN</string>
+                            <string>Device Identity</string>
+                        </array>
+                    </array>
+                </array>
+                <key>Challenge</key>
+                <string>%%MDM_SCEP_CHALLENGE%%</string>
+                <key>Keysize</key>
+                <integer>2048</integer>
+                <key>Key Type</key>
+                <string>RSA</string>
+            </dict>
+        </dict>
+
+        <!-- MDM payload: enrollment into NanoMDM via Caddy TLS proxy -->
+        <dict>
+            <key>PayloadType</key>
+            <string>com.apple.mdm</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.lima-mac.mdm</string>
+            <key>PayloadUUID</key>
+            <string>%%MDM_PAYLOAD_UUID%%</string>
+            <key>PayloadDisplayName</key>
+            <string>lima-mac MDM</string>
+            <!-- NanoMDM dispatches /checkin and /connect internally -->
+            <key>ServerURL</key>
+            <string>https://%%MDM_HOST_IP%%:%%MDM_HTTPS_PORT%%/mdm</string>
+            <key>CheckInURL</key>
+            <string>https://%%MDM_HOST_IP%%:%%MDM_HTTPS_PORT%%/mdm</string>
+            <key>Topic</key>
+            <string>%%MDM_PUSH_TOPIC%%</string>
+            <key>IdentityCertificateUUID</key>
+            <string>%%SCEP_PAYLOAD_UUID%%</string>
+            <key>CheckOutWhenRemoved</key>
+            <true/>
+            <!-- 8191 = all MDM access rights -->
+            <key>AccessRights</key>
+            <integer>8191</integer>
+        </dict>
+
+    </array>
+    <key>PayloadDescription</key>
+    <string>Enrolls device in lima-mac MDM for CI runner configuration</string>
+    <key>PayloadDisplayName</key>
+    <string>lima-mac MDM Enrollment</string>
+    <key>PayloadIdentifier</key>
+    <string>com.lima-mac.mdm.enrollment</string>
+    <key>PayloadOrganization</key>
+    <string>lima-mac</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>%%ENROLLMENT_UUID%%</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

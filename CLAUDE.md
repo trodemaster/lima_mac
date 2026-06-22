@@ -52,7 +52,7 @@ Override tool paths: `make build-26 LIMACTL=/opt/local/bin/limactl`
 
 **Makefile `wait_mount` macro** — called after `autologin-reboot.sh` before the wallpaper step. Polls until `/Volumes/lima_mac/configure.sh` exists inside the guest (up to 2 min, 5s intervals). The Lima guest agent creates the virtiofs symlink a few seconds after SSH is reachable; without this wait the wallpaper step fails with "no such file or directory."
 
-**`.envrc`** (gitignored, copy from `.envrc.template`): secrets sourced by `configure.sh` inside the VM via the shared volume. Key variables: `MACOS_PASSWORD`, `SKIP_CHEZMOI`, `SSH_PUBLIC_KEY`, `AUTO_LOGIN`.
+**`.envrc`** (gitignored, copy from `example.envrc`): secrets sourced by `configure.sh` inside the VM via the shared volume. Key variables: `MACOS_PASSWORD`, `SKIP_CHEZMOI`, `SSH_PUBLIC_KEY`, `AUTO_LOGIN`.
 
 **Runner registration**: the `runner` sub-command of `configure.sh` is called by the Makefile with `RUNNER_TOKEN` generated on the host via `gh api`. The token is never stored in the VM — it is passed as a short-lived env var only. Runner registration is always the last step so the runner cannot pick up jobs during a reboot.
 
