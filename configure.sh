@@ -62,6 +62,9 @@ main() {
     case "${1:-}" in
         runner)
             # Called by Makefile after macports.sh with RUNNER_LABEL and RUNNER_TOKEN set.
+            # Bootstrap the setup-assistant suppressor first so it fires before runner install.
+            local _sa_agent="$HOME/Library/LaunchAgents/com.lima.suppress-setup-assistant.plist"
+            [[ -f "$_sa_agent" ]] && launchctl bootstrap gui/"$(id -u)" "$_sa_agent" 2>/dev/null || true
             configure_runner
             ;;
         autologin)
@@ -72,6 +75,9 @@ main() {
             ;;
         wallpaper)
             # Set login window and user desktop wallpaper, then pre-approve Terminal access.
+            # Bootstrap the setup-assistant suppressor early (non-fatal if GUI not ready yet).
+            local _sa_agent="$HOME/Library/LaunchAgents/com.lima.suppress-setup-assistant.plist"
+            [[ -f "$_sa_agent" ]] && launchctl bootstrap gui/"$(id -u)" "$_sa_agent" 2>/dev/null || true
             configure_wallpaper
             configure_terminal_access
             ;;
@@ -265,18 +271,32 @@ configure_terminal_access() {
 configure_setup_assistant() {
     log_info "Suppressing macOS Setup Assistant and first-run screens..."
 
-    # Prevents the initial Setup Assistant wizard from running (system-level flag).
-    # Lima also touches this during disk patching, but re-touching is harmless.
+    # Prevents the initial Setup Assistant wizard from running (system-level flags).
+    # Lima touches both during disk patching, but re-touching is harmless and
+    # guards against macOS 27 beta where Lima's patch doesn't write .skipbuddy.
     sudo touch /var/db/.AppleSetupDone
+    sudo touch /var/db/.skipbuddy
+    # /.resolve/33/private/var/run/.DidRunFLO is referenced in MiniLauncherPlugin binary;
+    # touching it (in its canonical path) may satisfy an additional first-run check.
+    sudo touch /private/var/run/.DidRunFLO 2>/dev/null || true
 
     # NOTE: SkipSetupItems (OSShowcase, Welcome, etc.) requires an MDM profile.
     # Apple blocked 'profiles install' via CLI since Big Sur (2020), and writing
     # directly to the managed preferences domain does not work for this key.
     #
-    # Per-user DidSee* preferences are now written by Lima's fake-cloud-init
+    # Core DidSee* / MiniBuddy keys are written by Lima's fake-cloud-init
     # (suppressFirstLoginScreens in fakecloudinit_darwin.go) as a root LaunchDaemon
     # before the first GUI session — that is the correct timing to prevent macOS
     # from resetting them during first-login initialization.
+    #
+    # We also write user-level keys here (configure.sh runs via Lima SSH provisioning,
+    # concurrently with the first GUI session). New DidSee* keys added for macOS 27
+    # are safe no-ops on macOS 26 and earlier.
+    # NOTE: On macOS 27, UAU's MiniLauncherPlugin sets MiniBuddyLaunchReason=13 during
+    # the first autologin session (isNewUserAccount=true because PreviousBuildVersion is
+    # absent from the plist). SA then keeps the plist at 13 while it shows the dialog.
+    # The com.lima.sa-preseed root LaunchDaemon (installed below) fixes this by writing
+    # PreviousBuildVersion + MiniBuddyLaunchReason=0 BEFORE loginwindow reads the pref.
 
     # Suppress analytics/diagnostics consent dialogs (Analytics screen appears on
     # first login in macOS 26+, even with .AppleSetupDone present).
@@ -292,6 +312,300 @@ configure_setup_assistant() {
     sudo /usr/bin/defaults write \
         "/Library/Application Support/CrashReporter/DiagnosticMessagesHistory.plist" \
         SeedAutoSubmit -bool false
+
+    # ── macOS 27+ new setup assistant screens ────────────────────────────────
+    # These DidSee* keys mark screens that are new or newly promoted in macOS 27.
+    # Writing them true before the first GUI session prevents the dialogs from
+    # appearing. Keys are ignored on macOS 26 and earlier.
+    # Remove when: these screens are suppressed upstream in Lima's fake-cloud-init.
+    local SETUP_PLIST="$HOME/Library/Preferences/com.apple.SetupAssistant.plist"
+    # Full set of DidSee* keys observed in macOS 27 after manually dismissing all dialogs.
+    # Keys that already existed in macOS 26 are safe no-ops on older releases.
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeAccessibility              -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeActivationLock             -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeAppStore                   -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeAppearanceSetup            -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeApplePaySetup              -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeCloudSetup                 -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeLockdownMode               -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeePrivacy                    -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeScreenTime                 -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeSetupSequence              -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeSiriSetup                  -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeSyncSetup                  -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeSyncSetup2                 -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeTermsOfAddress             -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeTouchIDSetup               -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" DidSeeiCloudLoginForStorageServices -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" MiniBuddyLaunchReason             -int 0
+    /usr/bin/defaults write "$SETUP_PLIST" MiniBuddyLaunchedPostMigration    -bool false
+    /usr/bin/defaults write "$SETUP_PLIST" MiniBuddyShouldLaunchToResumeSetup -bool false
+    /usr/bin/defaults write "$SETUP_PLIST" SkipFirstLoginOptimization       -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" selectedFDEEscrowType            -string "DeclinedFDE"
+
+    # Version-tagged keys suppress feature upsells introduced in macOS 27.
+    # Using the current OS version so they stay suppressed across minor updates.
+    local OS_VERSION BUILD_VERSION
+    OS_VERSION=$(sw_vers -productVersion)
+    BUILD_VERSION=$(sw_vers -buildVersion)
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenAgeRangeSelectionProductVersion -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenBuddyBuildVersion               -string "$BUILD_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenCloudProductVersion             -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenDiagnosticsProductVersion       -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenGlassTintUpsellProductVersion   -string "$OS_VERSION"
+
+    # InitialSetup* keys are written by Setup Assistant when it completes first-time
+    # setup. Without them, macOS 27 stamps MiniBuddyLaunchReason=13 on every login,
+    # triggering the Apple Account dialog and blocking the desktop from loading.
+    # Pre-seeding them tells macOS that initial setup was done for this OS version.
+    /usr/bin/defaults write "$SETUP_PLIST" InitialSetupBuildVersion   -string "$BUILD_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" InitialSetupProductVersion -string "$OS_VERSION"
+
+    # LastPreLoginTasksPerformed* tells bootinstalld / the pre-login task runner that its
+    # tasks have already been executed for this build. Without these keys, macOS 27 fires
+    # the post-DFU cleanup chain (bootinstalld → CleanupPreparePathService → mbsystemadministration
+    # → mbuseragent → Setup Assistant "Software Update Complete") on every boot.
+    /usr/bin/defaults write "$SETUP_PLIST" LastPreLoginTasksPerformedBuild   -string "$BUILD_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastPreLoginTasksPerformedVersion -string "$OS_VERSION"
+
+    # PreviousSystemVersion / PreviousBuildVersion are read by loginwindow and passed
+    # to UserAccountUpdater (UAU) as session args. When they are integer 0 (the default
+    # for a fresh Lima user account), UAU's MiniLauncherPlugin sees previousOSVersion=nil
+    # → isNewUserAccount=true → launches mini buddy with reason=13 (Apple Account dialog).
+    # Setting them to the current version strings matches what SA writes after completing
+    # setup, telling UAU this is a returning user and suppressing the new-user code path.
+    # MiniBuddyLaunchCount records how many times mini buddy has already launched; 1 tells
+    # UAU mini buddy completed its initial run.
+    /usr/bin/defaults write "$SETUP_PLIST" PreviousSystemVersion -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" PreviousBuildVersion  -string "$BUILD_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" MiniBuddyLaunchCount  -int 1
+
+    # macOS 27: UAU MiniLauncherPlugin (com.apple.MiniBuddyLauncher) in UserAccountUpdater
+    # decides whether to launch mini buddy with reason=13 ("new user account needing Apple
+    # Account"). It checks isNewUserAccount which depends on two MBPerUserState properties:
+    #   isInitialAccountOnMac (plist key: InitialAccountOnMac) — whether this is an established
+    #     initial Mac account (true) vs a new account (false → triggers reason=13 launch)
+    #   initialAccountSetupDate (plist key: InitialAccountSetupDate) — date when account was
+    #     set up; nil means "new account" regardless of InitialAccountOnMac value
+    # Both must be set to prevent UAU from treating the VM user as a "new user account."
+    # SkipiCloudSetup / SkipiCloudStorageSetup skip those specific mini buddy panels in
+    # case mini buddy launches anyway (defense-in-depth).
+    /usr/bin/defaults write "$SETUP_PLIST" InitialAccountOnMac -bool true
+    /usr/bin/plutil -replace InitialAccountSetupDate -date "2026-01-01T00:00:00Z" "$SETUP_PLIST" 2>/dev/null || \
+        /usr/bin/plutil -insert  InitialAccountSetupDate -date "2026-01-01T00:00:00Z" "$SETUP_PLIST" 2>/dev/null || true
+    /usr/bin/defaults write "$SETUP_PLIST" SkipiCloudSetup         -bool true
+    /usr/bin/defaults write "$SETUP_PLIST" SkipiCloudStorageSetup  -bool true
+
+    # macOS 27 post-DFU: write skip keys to the MANAGED plist so mbuseragent (the
+    # user-space agent in the bootinstalld post-DFU chain) respects them before
+    # launching Setup Assistant. The managed plist is authoritative over the user
+    # plist. macOS 15+ uses SkipSetupItems (array) instead of individual boolean
+    # keys; UpdateCompleted specifically suppresses the post-DFU "Software Update
+    # Complete" SA chain triggered by bootinstalld on every first-GUI-session boot.
+    local MANAGED_SA_PLIST="/Library/Preferences/com.apple.SetupAssistant.managed.plist"
+    sudo /usr/bin/defaults write "$MANAGED_SA_PLIST" MiniBuddyLaunchReason      -int 0
+    sudo /usr/bin/defaults write "$MANAGED_SA_PLIST" SkipExpressSettingsUpdating -bool true
+    sudo /usr/bin/defaults write "$MANAGED_SA_PLIST" SkipiCloudSetup             -bool true
+    sudo /usr/bin/defaults write "$MANAGED_SA_PLIST" SkipiCloudStorageSetup      -bool true
+    # SkipSetupItems array (macOS 15+): used by SA / mbuseragent in the bootinstalld
+    # post-DFU chain. UpdateCompleted suppresses the "Software Update Complete" pane;
+    # AppleID suppresses the Apple Account sign-in screen. Other entries suppress
+    # screens that would otherwise appear on a fresh DFU-restored boot.
+    sudo /usr/bin/defaults write "$MANAGED_SA_PLIST" SkipSetupItems -array \
+        "AppleID" \
+        "Diagnostics" \
+        "FileVault" \
+        "Intelligence" \
+        "SoftwareUpdate" \
+        "UpdateCompleted" \
+        "Welcome"
+
+    # macOS 27: ISRootMigrator (in UserAccountUpdater) reads AppleLanguagesSchemaVersion
+    # from NSGlobalDomain via cfprefsd. When zero/missing on first boot, it sets
+    # isNewUserAccount=1 → MiniLauncherPlugin launches SA with reason 13 (Apple Account).
+    # cfprefsd does not persist NSGlobalDomain writes from non-GUI sessions (Boot 1 SSH
+    # provision) to .GlobalPreferences.plist. Write the file directly with PlistBuddy so
+    # cfprefsd reads 5400 from disk when Boot 2's GUI session starts (cfprefsd agent
+    # initialises from the plist on disk at the first GUI login).
+    local MAJOR_VERSION
+    MAJOR_VERSION=$(sw_vers -productVersion | cut -d. -f1)
+    if [ "${MAJOR_VERSION}" -ge 27 ] 2>/dev/null; then
+        local GLOBAL_PREFS="$HOME/Library/Preferences/.GlobalPreferences.plist"
+        /usr/libexec/PlistBuddy -c "Set :AppleLanguagesSchemaVersion 5400" "$GLOBAL_PREFS" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :AppleLanguagesSchemaVersion integer 5400" "$GLOBAL_PREFS"
+        chmod 600 "$GLOBAL_PREFS"
+    fi
+
+    # Additional version-tagged keys for macOS 27 features.
+    # Setting these to the current OS version prevents upsell/feature dialogs from appearing.
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenIntelligenceProductVersion          -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenNewFeaturesProductVersion           -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenSiriProductVersion                  -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenStorageServicesProductVersion       -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeeniCloudStorageServicesProductVersion -string "$OS_VERSION"
+    /usr/bin/defaults write "$SETUP_PLIST" LastSeenSyncProductVersion                  -string "$OS_VERSION"
+
+    # New in macOS 27: separate plist for the setup assistant privacy pane.
+    # Without this, the Privacy & Security setup screen re-appears on first login.
+    local PRIVACY_PLIST="$HOME/Library/Preferences/com.apple.setupassistant.privacypane.plist"
+    /usr/bin/defaults write "$PRIVACY_PLIST" HasSeenPrivacy        -bool true
+    /usr/bin/defaults write "$PRIVACY_PLIST" LastSeenPrivacyVersion -int 2
+    /usr/bin/defaults write "$PRIVACY_PLIST" MigrationVersion       -int 1
+
+    # Belt-and-suspenders: LaunchAgent that resets MiniBuddyLaunchReason=0 at
+    # login in case anything re-stamps it after the sa-preseed daemon ran.
+    # The primary suppression mechanism is the managed plist (written above by
+    # suppress_setup_assistant() and refreshed by sa-preseed on every boot).
+    local LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
+    mkdir -p "$LAUNCH_AGENTS_DIR"
+    local SUPPRESS_SA_SCRIPT="$HOME/Library/Scripts/lima-suppress-sa.sh"
+    mkdir -p "$(dirname "$SUPPRESS_SA_SCRIPT")"
+    cat > "$SUPPRESS_SA_SCRIPT" << 'SCRIPT'
+#!/bin/sh
+SA_PLIST="$HOME/Library/Preferences/com.apple.SetupAssistant.plist"
+/usr/bin/defaults write "$SA_PLIST" MiniBuddyLaunchReason              -int 0 2>/dev/null || true
+/usr/bin/defaults write "$SA_PLIST" MiniBuddyShouldLaunchToResumeSetup -bool false 2>/dev/null || true
+SCRIPT
+    chmod 755 "$SUPPRESS_SA_SCRIPT"
+
+    cat > "$LAUNCH_AGENTS_DIR/com.lima.suppress-setup-assistant.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lima.suppress-setup-assistant</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>${SUPPRESS_SA_SCRIPT}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+EOF
+    launchctl load "$LAUNCH_AGENTS_DIR/com.lima.suppress-setup-assistant.plist" 2>/dev/null || true
+
+    # Root LaunchDaemon that pre-seeds the SetupAssistant plist BEFORE loginwindow reads it.
+    # Problem: UAU's MiniLauncherPlugin sets MiniBuddyLaunchReason=13 during the first
+    # autologin session (because PreviousBuildVersion is absent → isNewUserAccount=true).
+    # SA then keeps the plist at 13 while it shows its dialog. On the next boot, loginwindow
+    # reads 13 → "MiniBuddyLaunch pref is set" → SA re-launches before configure.sh can run.
+    # Fix: run a root LaunchDaemon (before any GUI session) to write MiniBuddyLaunchReason=0
+    # and PreviousBuildVersion=current_build. With PreviousBuildVersion set, UAU gets a
+    # matching previous build → isNewUserAccount=false → MiniBuddyLaunchReason stays 0.
+    local SA_PRESEED_SCRIPT="/usr/local/sbin/lima-sa-preseed.sh"
+    local SA_PRESEED_PLIST="/Library/LaunchDaemons/com.lima.sa-preseed.plist"
+    local USER_SA_PLIST="$HOME/Library/Preferences/com.apple.SetupAssistant.plist"
+    sudo tee "$SA_PRESEED_SCRIPT" > /dev/null << SCRIPT
+#!/bin/sh
+BUILD=\$(sw_vers -buildVersion 2>/dev/null)
+VERSION=\$(sw_vers -productVersion 2>/dev/null)
+[ -n "\$BUILD" ]   || exit 0
+[ -n "\$VERSION" ] || exit 0
+MAJOR_VERSION=\$(echo "\$VERSION" | cut -d. -f1)
+if [ "\$MAJOR_VERSION" -ge 27 ] 2>/dev/null; then
+    # macOS 27: ISRootMigrator reads AppleLanguagesSchemaVersion from cfprefsd (NSGlobalDomain).
+    # cfprefsd agent initialises from .GlobalPreferences.plist at user-session start.
+    # This daemon runs before the user session, so writing here before the agent starts
+    # ensures the agent caches 5400 and ISRootMigrator does not trigger the SA Apple Account dialog.
+    # The SA plist may not exist yet (it's written by configure.sh later via SSH), so this
+    # block intentionally runs before the SA plist check below.
+    GUEST_UID=\$(id -u blake 2>/dev/null)
+    GUEST_GID=\$(id -g blake 2>/dev/null)
+    if [ -n "\$GUEST_UID" ]; then
+        GLOBAL_PREFS="/Users/blake.guest/Library/Preferences/.GlobalPreferences.plist"
+        /usr/libexec/PlistBuddy -c "Set :AppleLanguagesSchemaVersion 5400" "\$GLOBAL_PREFS" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :AppleLanguagesSchemaVersion integer 5400" "\$GLOBAL_PREFS" 2>/dev/null || true
+        [ -f "\$GLOBAL_PREFS" ] && chown "\${GUEST_UID}:\${GUEST_GID}" "\$GLOBAL_PREFS" 2>/dev/null || true
+        [ -f "\$GLOBAL_PREFS" ] && chmod 600 "\$GLOBAL_PREFS" 2>/dev/null || true
+    fi
+fi
+PLIST="${USER_SA_PLIST}"
+[ -f "\$PLIST" ]   || exit 0
+/usr/bin/defaults write "\$PLIST" MiniBuddyLaunchReason -int 0
+/usr/bin/defaults write "\$PLIST" MiniBuddyLaunchedPostMigration -bool false
+/usr/bin/defaults write "\$PLIST" MiniBuddyShouldLaunchToResumeSetup -bool false
+/usr/bin/defaults write "\$PLIST" PreviousBuildVersion -string "\$BUILD"
+/usr/bin/defaults write "\$PLIST" PreviousSystemVersion -string "\$VERSION"
+/usr/bin/defaults write "\$PLIST" LastSeenBuddyBuildVersion -string "\$BUILD"
+# Write skip keys to the managed plist so mbuseragent / Setup Assistant respect
+# them before showing any post-DFU dialogs. The managed plist is authoritative
+# over the user plist for these keys. This daemon runs as root before any GUI
+# session, so it can write to /Library/Preferences/.
+MANAGED_PLIST="/Library/Preferences/com.apple.SetupAssistant.managed.plist"
+/usr/bin/defaults write "\$MANAGED_PLIST" MiniBuddyLaunchReason      -int 0
+/usr/bin/defaults write "\$MANAGED_PLIST" SkipExpressSettingsUpdating -bool true
+/usr/bin/defaults write "\$MANAGED_PLIST" SkipiCloudSetup             -bool true
+/usr/bin/defaults write "\$MANAGED_PLIST" SkipiCloudStorageSetup      -bool true
+/usr/bin/defaults write "\$MANAGED_PLIST" SkipSetupItems -array \
+    "AppleID" \
+    "Diagnostics" \
+    "FileVault" \
+    "Intelligence" \
+    "SoftwareUpdate" \
+    "UpdateCompleted" \
+    "Welcome"
+# Restore plist ownership: defaults write (root) atomically replaces the file,
+# changing ownership to root. cfprefsd agent (running as the user) cannot read
+# a root-owned 0600 file — it gets an empty SA domain and mini-buddy shows dialogs.
+GUEST_UID=\$(id -u blake 2>/dev/null)
+GUEST_GID=\$(id -g blake 2>/dev/null)
+[ -n "\$GUEST_UID" ] && chown "\${GUEST_UID}:\${GUEST_GID}" "\$PLIST" 2>/dev/null || true
+SCRIPT
+    sudo chmod 755 "$SA_PRESEED_SCRIPT"
+    sudo chown root:wheel "$SA_PRESEED_SCRIPT"
+    sudo tee "$SA_PRESEED_PLIST" > /dev/null << 'LAUNCHDAEMON'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lima.sa-preseed</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/sbin/lima-sa-preseed.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+LAUNCHDAEMON
+    sudo chmod 644 "$SA_PRESEED_PLIST"
+    sudo chown root:wheel "$SA_PRESEED_PLIST"
+    sudo launchctl bootstrap system "$SA_PRESEED_PLIST" 2>/dev/null || true
+
+    # macOS 27: /private/tmp/.AppleMiniSetupDidRun records that mini buddy ran for UID 501.
+    # MiniLauncherPlugin checks this file on each login. /private/tmp/ is a volatile tmpfs
+    # cleared on every reboot, so mini buddy re-appears after reboot unless this file is
+    # recreated. A root LaunchDaemon recreates it at each boot, before user login.
+    local MINI_SETUP_DONE_PLIST="/Library/LaunchDaemons/com.lima.mini-setup-done.plist"
+    sudo tee "$MINI_SETUP_DONE_PLIST" > /dev/null << 'LAUNCHDAEMON'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lima.mini-setup-done</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>printf '{"uids":[501]}' > /private/tmp/.AppleMiniSetupDidRun; chmod 644 /private/tmp/.AppleMiniSetupDidRun</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+LAUNCHDAEMON
+    sudo chmod 644 "$MINI_SETUP_DONE_PLIST"
+    sudo chown root:wheel "$MINI_SETUP_DONE_PLIST"
+    # Create the file immediately too, for the current boot session.
+    printf '{"uids":[501]}' > /private/tmp/.AppleMiniSetupDidRun 2>/dev/null || \
+        sudo sh -c 'printf '"'"'{"uids":[501]}'"'"' > /private/tmp/.AppleMiniSetupDidRun; chmod 644 /private/tmp/.AppleMiniSetupDidRun' 2>/dev/null || true
+    # Load the daemon into the system launchd domain so it fires on every subsequent boot.
+    sudo launchctl bootstrap system "$MINI_SETUP_DONE_PLIST" 2>/dev/null || true
 
     log_info "Setup Assistant suppression complete"
 }

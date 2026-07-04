@@ -25,7 +25,7 @@ minimumLimaVersion: "2.1.0"
 # ── Image ──────────────────────────────────────────────────────────────────────
 
 images:
-- location: "https://updates.cdn-apple.com/2026SummerSeed/fullrestores/122-99636/BB03A927-E303-44C1-BB94-6197F130A163/UniversalMac_27.0_26A5353q_Restore.ipsw"
+- location: "file:///Users/blake/Downloads/UniversalMac_27.0_26A5368g_Restore.ipsw"
   arch: "aarch64"
 
 # macOS guests require VZ (Apple Virtualization.framework) — QEMU is not supported
@@ -107,10 +107,6 @@ vmOpts:
          - preset: sshd-full-disk-access
          - preset: lima-guestagent-full-disk-access
          - preset: terminal-accessibility
-         - service: kTCCServiceAccessibility
-           client: /opt/local/bin/cliclick
-           clientType: path
-           authValue: allow
 
 # Nested virtualisation lets you run another hypervisor inside this VM.
 # Requires Apple M3 or later.

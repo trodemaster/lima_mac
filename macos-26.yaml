@@ -25,7 +25,7 @@ minimumLimaVersion: "2.1.0"
 # ── Image ──────────────────────────────────────────────────────────────────────
 
 images:
-- location: "https://updates.cdn-apple.com/2026SpringFCS/fullrestores/122-88870/E47EBB85-45F2-4E3C-B9E7-6FF7868C2FBA/UniversalMac_26.5.1_25F80_Restore.ipsw"
+- location: "file:///Users/blake/Developer/lima_mac/ipsw/UniversalMac_26.6_25G5052e_Restore.ipsw"
   arch: "aarch64"
 
 # macOS guests require VZ (Apple Virtualization.framework) — QEMU is not supported
