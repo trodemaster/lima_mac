@@ -56,6 +56,30 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $@"
 }
 
+# Run a command (or function) with a wall-clock cap, killing it if it hangs.
+# Needed because `defaults write`/`pmset`/`plutil` round-trip through cfprefsd,
+# which has been observed to block indefinitely on macOS 27 beta guests this
+# early in boot (Setup Assistant itself was still stuck at the first-boot
+# progress screen). Not seen on macOS 26 or 15 — treat as pre-release flakiness
+# to route around, not something to root-cause here. Pure-bash so it works
+# before any package manager is available. A killed function may leave an
+# orphaned child process (e.g. a stuck `defaults write`) running harmlessly in
+# the background — the goal is only to stop it from blocking configure.sh, and
+# therefore Lima's boot-readiness gate, forever.
+# Usage: run_with_timeout <seconds> <command-or-function> [args...]
+run_with_timeout() {
+    local secs="$1"; shift
+    "$@" &
+    local pid=$!
+    ( sleep "$secs" 2>/dev/null; kill -9 "$pid" 2>/dev/null ) &
+    local watcher=$!
+    local rc=0
+    wait "$pid" 2>/dev/null || rc=$?
+    kill "$watcher" 2>/dev/null
+    wait "$watcher" 2>/dev/null
+    return "$rc"
+}
+
 # ── Main Configuration Steps ───────────────────────────────────────────────────
 
 main() {
@@ -71,7 +95,7 @@ main() {
             # Re-apply auto-login after OS upgrades clear the setting.
             configure_password
             configure_autologin
-            configure_screensaver
+            run_with_timeout 60 configure_screensaver || log_warn "configure_screensaver timed out or failed (non-fatal — see run_with_timeout comment)"
             ;;
         wallpaper)
             # Set login window and user desktop wallpaper, then pre-approve Terminal access.
@@ -90,8 +114,8 @@ main() {
             log_info "Starting macOS VM configuration..."
             configure_password
             configure_autologin
-            configure_setup_assistant
-            configure_screensaver
+            run_with_timeout 60 configure_setup_assistant || log_warn "configure_setup_assistant timed out or failed (non-fatal — see run_with_timeout comment)"
+            run_with_timeout 60 configure_screensaver || log_warn "configure_screensaver timed out or failed (non-fatal — see run_with_timeout comment)"
             configure_ssh_keys
             configure_chezmoi
             log_info "Configuration complete!"

@@ -94,6 +94,8 @@ Override tool paths: `make build-26 LIMACTL=/opt/local/bin/limactl`
 
 **`sources.conf` is intentionally untouched by `macports.sh`** — it is configured at CI workflow runtime by `blakeports/scripts/installmacports` to point at the runner workspace checkout.
 
+**macOS 27 beta: `defaults write` can hang boot indefinitely (pre-release flakiness, not root-caused)** — observed on a macOS 27 beta guest: `configure_setup_assistant`/`configure_screensaver`'s per-user `defaults write`/`pmset`/`plutil` calls round-trip through cfprefsd, and one blocked forever (near-zero CPU, not spinning) while Setup Assistant itself was separately stuck at the first-boot progress screen (`Setup Assistant -MiniBuddyYes`, also near-zero CPU). Not seen on macOS 26 or 15. Since this is pre-release Apple software, `configure.sh` doesn't try to fix the underlying hang — `run_with_timeout` wraps both functions' call sites (60s cap, non-fatal) so a stuck cfprefsd round-trip can't block `configure.sh`, and therefore Lima's "boot scripts must have finished" gate (~10 min budget), forever. A killed call may leave a harmless orphaned `defaults`/`pmset` process behind. If the guest's GUI session itself is stuck (not just one script), the deeper hang is un-fixable from configure.sh — recreate the VM (`make rebuild-27-beta`) and treat it as beta flakiness, consistent with `TODO.md`'s existing note that macOS 27 fakecloudinit/DFU workarounds (`M1`/`B3` patches in `lima-devl`) are beta-only and not upstreamed.
+
 ## Prerequisites (host)
 
 - Apple Silicon Mac, macOS 15+
