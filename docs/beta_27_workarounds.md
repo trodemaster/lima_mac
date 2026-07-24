@@ -15,8 +15,10 @@ individual beta regressions don't block the whole provisioning flow.
 
 **Bug:** `VZMacOSInstaller` (Virtualization.framework high-level API) fails when the
 guest IPSW version > host OS. Attempting a normal `limactl create` / `limactl start`
-on a macOS 27 IPSW from a macOS 26 host produces a silent or cryptic error before
-install completes.
+on a macOS 27 IPSW from a macOS 26 host fails with `VZErrorDomain Code=10007` /
+`AMRestorePerformRestoreModeRestoreWithError failed with error: 11` before install
+completes (confirmed error text as of 2026-07-23; earlier notes described this more
+vaguely before the exact error was captured).
 
 **Workaround:** When the guest OS version exceeds the host, skip `VZMacOSInstaller`
 and instead:
@@ -28,8 +30,14 @@ and instead:
    Configurator for physical Mac restores
 4. Wait for "Successful" terminal status via the progress callback before continuing
 
-**Remove when:** `VZMacOSInstaller` works for cross-version installs (expected when
-macOS 27 ships or Apple patches the framework in a later beta).
+**Remove when:** host is on **macOS 26.6+** (per VirtualBuddy's own bug reports —
+[#706](https://github.com/insidegui/VirtualBuddy/pull/706),
+[#555](https://github.com/insidegui/VirtualBuddy/pull/555) — the standard installer
+needs a host beta version-adjacent to the guest, not just a matching Xcode device-support
+package). Retested 2026-07-23 against beta 4 on stable host 26.5.2: still fails
+identically. Decision: wait for 26.6 GA rather than beta-enroll the primary host. Full
+removal test log and step-by-step future procedure: see
+[dfu-install.md § 2026-07-23 Removal Test](dfu-install.md#2026-07-23-removal-test).
 
 ---
 
