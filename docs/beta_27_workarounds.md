@@ -8,7 +8,7 @@ individual beta regressions don't block the whole provisioning flow.
 
 ---
 
-## 1. Lima: DFU install via MobileDevice.framework
+## 1. Lima: DFU install via MobileDevice.framework — REMOVED 2026-07-25
 
 **Where:** `lima-devl` branch `upstream-pr/b3-dfu-beta27`
 (`pkg/driver/vz/macos27_dfu_install_darwin_arm64.{go,m,h}`)
@@ -30,14 +30,12 @@ and instead:
    Configurator for physical Mac restores
 4. Wait for "Successful" terminal status via the progress callback before continuing
 
-**Remove when:** host is on **macOS 26.6+** (per VirtualBuddy's own bug reports —
-[#706](https://github.com/insidegui/VirtualBuddy/pull/706),
-[#555](https://github.com/insidegui/VirtualBuddy/pull/555) — the standard installer
-needs a host beta version-adjacent to the guest, not just a matching Xcode device-support
-package). Retested 2026-07-23 against beta 4 on stable host 26.5.2: still fails
-identically. Decision: wait for 26.6 GA rather than beta-enroll the primary host. Full
-removal test log and step-by-step future procedure: see
-[dfu-install.md § 2026-07-23 Removal Test](dfu-install.md#2026-07-23-removal-test).
+**Removed:** host reached stable **macOS 26.6** (25G70) on 2026-07-25. Re-tested against
+the same beta-4 IPSW with a throwaway instance: `VZErrorDomain Code=10007` is gone — the
+standard `VZMacOSInstaller` path now runs past the point that used to fail, confirming the
+bug this workaround existed for is fixed on the host side. `patch-08-b3-dfu-beta27.diff` is
+disabled in the Portfile; branch/code removal cleanup is tracked separately. Full test log:
+see [dfu-install.md § 2026-07-25 Removal Confirmed](dfu-install.md#2026-07-25-removal-confirmed).
 
 ---
 

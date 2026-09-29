@@ -1,5 +1,18 @@
 # IPSW BuildManifest.plist
 
+> **Why this matters — planned PR ("PR 1"):** expose the guest macOS version /
+> build number that Lima already reads off the restore image, for host-side and
+> boot-time conditional logic. Issue draft:
+> `~/orac/Computer/blakeports/lima guest os version issue draft.md`.
+> It is a **hard prerequisite** for the macOS 27 native guest-provisioning PR —
+> see [macos27-guest-provisioning.md](macos27-guest-provisioning.md), which needs
+> the guest major version to pick between the native path, fake cloud-init
+> (PR #5336, merged), and warn-and-skip.
+>
+> **Lima has no host-macOS-version helper right now** (`grep` on 2026-09-10 found
+> none; the old `hostOSMajorVersion()` left with the DFU workaround removal on
+> 2026-07-25). Both PRs want one — introduce a shared `hostMacOSMajorVersion()`.
+
 ## File Format
 
 An IPSW file is a standard ZIP archive. `BuildManifest.plist` is located at the root of the archive and can be extracted without downloading the full file.

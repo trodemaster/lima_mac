@@ -5,6 +5,7 @@
         build-27-beta clean-27-beta rebuild-27-beta \
         build-15 clean-15 rebuild-15 \
         build-26-test clean-26-test rebuild-26-test \
+        build-15-test clean-15-test rebuild-15-test \
         status help
 
 # ── Tool paths ────────────────────────────────────────────────────────────────
@@ -41,11 +42,13 @@ INSTANCE_26      := macos-26
 INSTANCE_27_BETA := macos-27-beta
 INSTANCE_15      := macos-15
 INSTANCE_26_TEST := macos-26-test
+INSTANCE_15_TEST := macos-15-test
 
 CONFIG_26      := $(CURDIR)/macos-26.yaml
 CONFIG_27_BETA := $(CURDIR)/macos-27-beta.yaml
 CONFIG_15      := $(CURDIR)/macos-15.yaml
 CONFIG_26_TEST := $(CURDIR)/macos-26-test.yaml
+CONFIG_15_TEST := $(CURDIR)/macos-15-test.yaml
 
 RUNNER_26      := macOS_26
 RUNNER_27_BETA := macOS_27_beta
@@ -152,6 +155,18 @@ clean-26-test:
 
 rebuild-26-test: clean-26-test build-26-test
 
+# ── macOS 15 test (patch validation — no provisioning) ────────────────────────
+
+build-15-test:
+	$(LIMACTL) create --tty=false --name=$(INSTANCE_15_TEST) $(CONFIG_15_TEST)
+	$(LIMACTL) start $(INSTANCE_15_TEST)
+
+clean-15-test:
+	-$(LIMACTL) stop -f $(INSTANCE_15_TEST)
+	$(LIMACTL) remove -f $(INSTANCE_15_TEST)
+
+rebuild-15-test: clean-15-test build-15-test
+
 # ── Status and help ───────────────────────────────────────────────────────────
 
 status:
@@ -177,6 +192,10 @@ help:
 	@echo "  build-26-test   Create and start patch-validation VM (no provisioning)"
 	@echo "  clean-26-test   Stop and remove patch-validation VM"
 	@echo "  rebuild-26-test Clean then build patch-validation VM"
+	@echo ""
+	@echo "  build-15-test   Create and start macOS 15 patch-validation VM (no provisioning)"
+	@echo "  clean-15-test   Stop and remove macOS 15 patch-validation VM"
+	@echo "  rebuild-15-test Clean then build macOS 15 patch-validation VM"
 	@echo ""
 	@echo "  status          Show all Lima instance states"
 	@echo "  help            Show this message"

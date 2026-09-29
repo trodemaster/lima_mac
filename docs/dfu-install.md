@@ -1,11 +1,11 @@
 # macOS 27 Beta: DFU Install Workaround
 
-**Status**: IMPLEMENTED — `lima-devl` branch `upstream-pr/b3-dfu-beta27`
-(`pkg/driver/vz/macos27_dfu_install_darwin_arm64.{go,m,h}`)
-
-**Remove when**: the host is running **macOS 26.6 or later** (beta or GA — see "2026-07-23
-Removal Test" below for why 26.6 specifically, and "Future Removal Procedure" for exact
-steps). Confirmed still required as of 2026-07-23 with host on stable macOS 26.5.2.
+**Status**: REMOVED (2026-07-25) — host is on macOS 26.6, confirmed via a real throwaway-instance
+test that the installer bug (`VZErrorDomain Code=10007`) DFU was working around is gone. See
+"2026-07-25 Removal Confirmed" below. Portfile no longer applies `patch-08-b3-dfu-beta27.diff`;
+the `upstream-pr/b3-dfu-beta27` branch and code
+(`pkg/driver/vz/macos27_dfu_install_darwin_arm64.{go,m,h}`) are kept for reference until the
+branch-removal cleanup step (below) is completed.
 
 ---
 
@@ -208,6 +208,35 @@ not a fluke.
 **Decision (2026-07-23):** wait for macOS 26.6 to reach GA (stable release) before revisiting
 DFU removal. Enrolling the primary/daily-driver host in a beta channel just to drop this
 workaround isn't worth it — 26.6 GA should arrive well before macOS 27 does anyway.
+
+### 2026-07-25 Removal Confirmed
+
+Host is now on stable **macOS 26.6** (Build 25G70). Re-ran the removal procedure below:
+`patch-08-b3-dfu-beta27.diff` disabled in the Portfile, rebuilt via MacPorts, confirmed
+`strings limactl | grep -c "DFU install:"` → `0`. CI (`build-lima-devl.yml`) passed on both
+the `macOS_26` and `macOS_27_beta` self-hosted runners with the patch removed.
+
+Ran the real throwaway-instance test (`dfu-removal-test` from `macos-27-beta.yaml`,
+`UniversalMac_27.0_26A5388g_Restore.ipsw` — beta 4, unchanged from the 2026-07-23 attempt).
+Result: **`VZErrorDomain Code=10007` is gone.** The standard `VZMacOSInstaller` path now runs
+to a different, later failure:
+
+```
+Error Domain=VZErrorDomain Code=10006
+Description="A software update is required to complete the installation.
+Installation requires a software update."
+```
+
+This is Apple's restore service rejecting the **beta-4 IPSW itself as stale** relative to what
+a 26.6 host's personalization pipeline will accept — a separate, well-understood gate (matches
+the general "guest IPSW too old for host's catalog" case), not the DFU-workaround's target bug.
+Getting a full end-to-end install will need a newer macOS 27 beta IPSW; the DFU-removal question
+itself is answered.
+
+**Decision:** proceed with permanently removing DFU (branch + patch), since the specific bug
+`upstream-pr/b3-dfu-beta27` exists to work around (error 10007) is confirmed gone on a 26.6
+host. The `Code=10006` stale-IPSW issue is unrelated and tracked separately — a newer beta IPSW
+will be needed to actually validate a full macOS 27 beta guest install, DFU or not.
 
 ### Future Removal Procedure
 

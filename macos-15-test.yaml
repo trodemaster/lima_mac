@@ -1,13 +1,13 @@
-# Reference macOS 26 test configuration
+# Reference macOS 15 test configuration
 #
-# This mirrors the upstream Lima template://macos-26 exactly, with only
-# the IPSW updated to the 26.6 (25G70) build. Use this to validate patches
+# This mirrors the upstream Lima template://macos-15 exactly, with only
+# the IPSW updated to the 15.6.1 (24G90) build. Use this to validate patches
 # against a stock Lima configuration without custom provisioning or mounts.
 #
 # Usage:
-#   limactl create --name=macos-26-test ./macos-26-test.yaml
-#   limactl start macos-26-test
-#   limactl remove -f macos-26-test
+#   limactl create --name=macos-15-test ./macos-15-test.yaml
+#   limactl start macos-15-test
+#   limactl remove -f macos-15-test
 
 minimumLimaVersion: "2.1.0"
 
@@ -15,7 +15,7 @@ base:
 - template:_default/mounts
 
 images:
-- location: "file:///Users/blake/Developer/lima_mac/ipsw/UniversalMac_26.6_25G70_Restore.ipsw"
+- location: "https://updates.cdn-apple.com/2025SummerFCS/fullrestores/093-10809/CFD6DD38-DAF0-40DA-854F-31AAD1294C6F/UniversalMac_15.6.1_24G90_Restore.ipsw"
   arch: "aarch64"
 
 os: Darwin
