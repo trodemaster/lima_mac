@@ -1,9 +1,10 @@
 # Lima macOS VM Management
-# Manages three VM instances: macos-26 (release), macos-27-beta (beta), macos-15 (N-1)
+# Manages four VM instances: macos-27, macos-26, macos-15 (N-2), macos-14 (N-3)
 
 .PHONY: build-26 clean-26 rebuild-26 \
-        build-27-beta clean-27-beta rebuild-27-beta \
+        build-27 clean-27 rebuild-27 \
         build-15 clean-15 rebuild-15 \
+        build-14 clean-14 rebuild-14 \
         build-26-test clean-26-test rebuild-26-test \
         build-15-test clean-15-test rebuild-15-test \
         status help
@@ -24,7 +25,7 @@ GITHUB_REPO     ?= blakeports
 # Set to 1 to skip OS software update check (speeds up test builds)
 SKIP_OS_UPDATE  ?= 0
 
-# Filename of the Xcode .xip archive in lima_mac/xcode/ (e.g. Xcode_27_beta.xip).
+# Filename of the Xcode .xip archive in lima_mac/xcode/ (e.g. Xcode_27.xip).
 # If unset, Xcode install is skipped — CLT will still be installed.
 XCODE_XIP       ?=
 
@@ -39,20 +40,23 @@ SKIP_MACPORTS   ?= 0
 # ── Instance definitions ──────────────────────────────────────────────────────
 
 INSTANCE_26      := macos-26
-INSTANCE_27_BETA := macos-27-beta
+INSTANCE_27      := macos-27
 INSTANCE_15      := macos-15
+INSTANCE_14      := macos-14
 INSTANCE_26_TEST := macos-26-test
 INSTANCE_15_TEST := macos-15-test
 
 CONFIG_26      := $(CURDIR)/macos-26.yaml
-CONFIG_27_BETA := $(CURDIR)/macos-27-beta.yaml
+CONFIG_27      := $(CURDIR)/macos-27.yaml
 CONFIG_15      := $(CURDIR)/macos-15.yaml
+CONFIG_14      := $(CURDIR)/macos-14.yaml
 CONFIG_26_TEST := $(CURDIR)/macos-26-test.yaml
 CONFIG_15_TEST := $(CURDIR)/macos-15-test.yaml
 
 RUNNER_26      := macOS_26
-RUNNER_27_BETA := macOS_27_beta
+RUNNER_27      := macOS_27
 RUNNER_15      := macOS_15
+RUNNER_14      := macOS_14
 
 .DEFAULT_GOAL := help
 
@@ -93,30 +97,30 @@ clean-26:
 
 rebuild-26: clean-26 build-26
 
-# ── macOS 27 Beta ─────────────────────────────────────────────────────────────
+# ── macOS 27 ──────────────────────────────────────────────────────────────────
 
-build-27-beta:
-	$(LIMACTL) create --tty=false --name=$(INSTANCE_27_BETA) $(CONFIG_27_BETA)
-	$(LIMACTL) start $(INSTANCE_27_BETA)
-	$(LIMACTL) stop $(INSTANCE_27_BETA)
-	$(LIMACTL) start $(INSTANCE_27_BETA)
-	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_27_BETA) $(LIMACTL)
-	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_27_BETA) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
-	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_27_BETA) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
-	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_27_BETA) $(LIMACTL)
-	$(call wait_mount,$(INSTANCE_27_BETA))
-	$(LIMACTL) shell $(INSTANCE_27_BETA) /Volumes/lima_mac/configure.sh wallpaper
-	$(LIMACTL) shell $(INSTANCE_27_BETA) env \
-		RUNNER_LABEL=$(RUNNER_27_BETA) \
+build-27:
+	$(LIMACTL) create --tty=false --name=$(INSTANCE_27) $(CONFIG_27)
+	$(LIMACTL) start $(INSTANCE_27)
+	$(LIMACTL) stop $(INSTANCE_27)
+	$(LIMACTL) start $(INSTANCE_27)
+	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_27) $(LIMACTL)
+	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_27) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
+	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_27) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
+	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_27) $(LIMACTL)
+	$(call wait_mount,$(INSTANCE_27))
+	$(LIMACTL) shell $(INSTANCE_27) /Volumes/lima_mac/configure.sh wallpaper
+	$(LIMACTL) shell $(INSTANCE_27) env \
+		RUNNER_LABEL=$(RUNNER_27) \
 		RUNNER_TOKEN=$$(gh api repos/$(GITHUB_OWNER)/$(GITHUB_REPO)/actions/runners/registration-token --method POST --jq '.token') \
 		/Volumes/lima_mac/configure.sh runner
 
-clean-27-beta:
-	-$(GHRUNNER) -remove $(RUNNER_27_BETA)
-	-$(LIMACTL) stop -f $(INSTANCE_27_BETA)
-	$(LIMACTL) remove -f $(INSTANCE_27_BETA)
+clean-27:
+	-$(GHRUNNER) -remove $(RUNNER_27)
+	-$(LIMACTL) stop -f $(INSTANCE_27)
+	$(LIMACTL) remove -f $(INSTANCE_27)
 
-rebuild-27-beta: clean-27-beta build-27-beta
+rebuild-27: clean-27 build-27
 
 # ── macOS 15 (Sequoia) ────────────────────────────────────────────────────────
 
@@ -142,6 +146,31 @@ clean-15:
 	$(LIMACTL) remove -f $(INSTANCE_15)
 
 rebuild-15: clean-15 build-15
+
+# ── macOS 14 (Sonoma) ────────────────────────────────────────────────────────
+
+build-14:
+	$(LIMACTL) create --tty=false --name=$(INSTANCE_14) $(CONFIG_14)
+	$(LIMACTL) start $(INSTANCE_14)
+	$(LIMACTL) stop $(INSTANCE_14)
+	$(LIMACTL) start $(INSTANCE_14)
+	SKIP_OS_UPDATE=$(SKIP_OS_UPDATE) $(CURDIR)/os-update.sh $(INSTANCE_14) $(LIMACTL)
+	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_14) env XCODE_XIP=$(XCODE_XIP) /Volumes/lima_mac/developertools.sh
+	@[ "$(SKIP_MACPORTS)" = "1" ] || $(LIMACTL) shell $(INSTANCE_14) env SKIP_CLICLICK=$(SKIP_CLICLICK) /Volumes/lima_mac/macports.sh
+	$(CURDIR)/scripts/autologin-reboot.sh $(INSTANCE_14) $(LIMACTL)
+	$(call wait_mount,$(INSTANCE_14))
+	$(LIMACTL) shell $(INSTANCE_14) /Volumes/lima_mac/configure.sh wallpaper
+	$(LIMACTL) shell $(INSTANCE_14) env \
+		RUNNER_LABEL=$(RUNNER_14) \
+		RUNNER_TOKEN=$$(gh api repos/$(GITHUB_OWNER)/$(GITHUB_REPO)/actions/runners/registration-token --method POST --jq '.token') \
+		/Volumes/lima_mac/configure.sh runner
+
+clean-14:
+	-$(GHRUNNER) -remove $(RUNNER_14)
+	-$(LIMACTL) stop -f $(INSTANCE_14)
+	$(LIMACTL) remove -f $(INSTANCE_14)
+
+rebuild-14: clean-14 build-14
 
 # ── macOS 26 test (patch validation — no provisioning) ────────────────────────
 
@@ -181,9 +210,9 @@ help:
 	@echo "  clean-26        Deregister runner, stop, and remove macOS 26 VM"
 	@echo "  rebuild-26      Clean then build macOS 26"
 	@echo ""
-	@echo "  build-27-beta   Create, provision, install MacPorts, and register macOS 27 Beta runner"
-	@echo "  clean-27-beta   Deregister runner, stop, and remove macOS 27 Beta VM"
-	@echo "  rebuild-27-beta Clean then build macOS 27 Beta"
+	@echo "  build-27        Create, provision, install MacPorts, and register macOS 27 runner"
+	@echo "  clean-27        Deregister runner, stop, and remove macOS 27 VM"
+	@echo "  rebuild-27      Clean then build macOS 27"
 	@echo ""
 	@echo "  build-15        Create, provision, install MacPorts, and register macOS 15 runner"
 	@echo "  clean-15        Deregister runner, stop, and remove macOS 15 VM"
@@ -192,6 +221,10 @@ help:
 	@echo "  build-26-test   Create and start patch-validation VM (no provisioning)"
 	@echo "  clean-26-test   Stop and remove patch-validation VM"
 	@echo "  rebuild-26-test Clean then build patch-validation VM"
+	@echo ""
+	@echo "  build-14        Create, provision, install MacPorts, and register macOS 14 runner"
+	@echo "  clean-14        Deregister runner, stop, and remove macOS 14 VM"
+	@echo "  rebuild-14      Clean then build macOS 14"
 	@echo ""
 	@echo "  build-15-test   Create and start macOS 15 patch-validation VM (no provisioning)"
 	@echo "  clean-15-test   Stop and remove macOS 15 patch-validation VM"

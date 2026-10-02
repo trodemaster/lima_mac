@@ -214,9 +214,9 @@ workaround isn't worth it — 26.6 GA should arrive well before macOS 27 does an
 Host is now on stable **macOS 26.6** (Build 25G70). Re-ran the removal procedure below:
 `patch-08-b3-dfu-beta27.diff` disabled in the Portfile, rebuilt via MacPorts, confirmed
 `strings limactl | grep -c "DFU install:"` → `0`. CI (`build-lima-devl.yml`) passed on both
-the `macOS_26` and `macOS_27_beta` self-hosted runners with the patch removed.
+the `macOS_26` and `macOS_27` self-hosted runners with the patch removed.
 
-Ran the real throwaway-instance test (`dfu-removal-test` from `macos-27-beta.yaml`,
+Ran the real throwaway-instance test (`dfu-removal-test` from `macos-27.yaml`,
 `UniversalMac_27.0_26A5388g_Restore.ipsw` — beta 4, unchanged from the 2026-07-23 attempt).
 Result: **`VZErrorDomain Code=10007` is gone.** The standard `VZMacOSInstaller` path now runs
 to a different, later failure:
@@ -253,11 +253,11 @@ VirtualBuddy report above, if testing earlier is ever worth it):
    see `sysutils/lima-devl/TODO.md` in blakeports for the MacPorts quirk.
 4. Verify: `strings /opt/local/bin/limactl | grep -c "DFU install:"` should print `0`.
 5. Test with a **throwaway instance name** first (`limactl create --tty=false
-   --name=dfu-removal-test macos-27-beta.yaml && limactl start dfu-removal-test`), not the
-   production `macos-27-beta` instance — if the standard installer still fails, you don't
+   --name=dfu-removal-test macos-27.yaml && limactl start dfu-removal-test`), not the
+   production `macos-27` instance — if the standard installer still fails, you don't
    want to have already destroyed the working VM. Clean up with `limactl remove -f
    dfu-removal-test` regardless of outcome.
-6. Only after the throwaway test succeeds: run the real `make rebuild-27-beta` to recreate
+6. Only after the throwaway test succeeds: run the real `make rebuild-27` to recreate
    the production instance, then delete `upstream-pr/b3-dfu-beta27` (branch + patch file)
    for real, following the lima-devl skill's branch-removal workflow (same pattern as the
    already-merged G1/G3/G4 patches).

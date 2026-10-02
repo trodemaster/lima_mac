@@ -457,4 +457,4 @@ All observations from macOS 27 Beta (`26A5353q`) on Apple Silicon VM:
 - Post-DFU chain observed on Boot 2/3: bootinstalld, CleanupPreparePathService, mbsystemadministration (root), mbuseragent, Setup Assistant (blake) all visible in `ps aux`
 - `launchctl print-disabled system | grep bootinstalld` → shows `disabled` yet process still runs (on-demand Mach IPC activation bypasses disabled flag)
 - SA `-1712` AppleEvent timeout: confirmed from both osascript output and lima runner logs; SA's modal "Software Update Complete" state suspends the Apple Events port
-- kill-sa-chain v2 verified clean on Boot 4 and Boot 5 from a fresh `make rebuild-27-beta`
+- kill-sa-chain v2 verified clean on Boot 4 and Boot 5 from a fresh `make rebuild-27`

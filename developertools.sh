@@ -7,7 +7,7 @@
 #
 # Environment variables:
 #   XCODE_XIP   - filename of the Xcode .xip archive inside /Volumes/lima_mac/xcode/
-#                 e.g. XCODE_XIP=Xcode_27_beta.xip
+#                 e.g. XCODE_XIP=Xcode_27.xip
 #                 If unset or the file is not found, Xcode install is skipped with
 #                 a warning (non-fatal). CLT install is always attempted and required.
 #

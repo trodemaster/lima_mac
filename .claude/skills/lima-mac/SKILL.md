@@ -7,7 +7,7 @@ description: Techniques for managing, debugging, and inspecting Lima macOS VMs i
 
 ## Overview
 
-This repo manages Lima macOS guest VMs (`macos-26`, `macos-27-beta`, `macos-15`) used as GitHub Actions runners for blakeports CI. Key knowledge for debugging and maintaining these VMs.
+This repo manages Lima macOS guest VMs (`macos-26`, `macos-27`, `macos-15`) used as GitHub Actions runners for blakeports CI. Key knowledge for debugging and maintaining these VMs.
 
 ---
 
@@ -21,16 +21,16 @@ Both require **`dangerouslyDisableSandbox: true`** when run via Claude's Bash to
 
 ```bash
 # Interactive shell
-limactl shell macos-27-beta
+limactl shell macos-27
 
 # Run a single command
-limactl shell macos-27-beta -- sw_vers
+limactl shell macos-27 -- sw_vers
 
 # Run a script from the virtiofs mount
-limactl shell macos-27-beta -- /Volumes/lima_mac/macports.sh
+limactl shell macos-27 -- /Volumes/lima_mac/macports.sh
 
 # Pass env vars
-limactl shell macos-27-beta -- env XCODE_XIP=Xcode_27_beta.xip /Volumes/lima_mac/developertools.sh
+limactl shell macos-27 -- env XCODE_XIP=Xcode_27.xip /Volumes/lima_mac/developertools.sh
 ```
 
 ### Direct SSH (for file copies and virtiofs cache bypass)
@@ -39,16 +39,16 @@ Each Lima VM has an SSH config at `~/.lima/<name>/ssh.config`. The host alias is
 
 ```bash
 # Copy a file into the VM (bypasses virtiofs cache)
-scp -F ~/.lima/macos-27-beta/ssh.config \
+scp -F ~/.lima/macos-27/ssh.config \
     /Users/blake/Developer/lima_mac/macports.sh \
-    lima-macos-27-beta:~/macports.sh
+    lima-macos-27:~/macports.sh
 
 # Run the copied file
-ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'bash ~/macports.sh'
+ssh -F ~/.lima/macos-27/ssh.config lima-macos-27 'bash ~/macports.sh'
 
 # Copy a file out of the VM
-scp -F ~/.lima/macos-27-beta/ssh.config \
-    lima-macos-27-beta:~/some-log.txt /tmp/some-log.txt
+scp -F ~/.lima/macos-27/ssh.config \
+    lima-macos-27:~/some-log.txt /tmp/some-log.txt
 ```
 
 ### When to use each
@@ -242,11 +242,11 @@ The `/Volumes/lima_mac/` virtiofs share inside the VM caches files. **Edits made
 **Workaround**: SCP the file directly to the guest home directory and run it from there:
 
 ```bash
-scp -F ~/.lima/macos-27-beta/ssh.config \
+scp -F ~/.lima/macos-27/ssh.config \
     /Users/blake/Developer/lima_mac/macports.sh \
-    lima-macos-27-beta:~/macports.sh
+    lima-macos-27:~/macports.sh
 
-ssh -F ~/.lima/macos-27-beta/ssh.config lima-macos-27-beta 'bash ~/macports.sh'
+ssh -F ~/.lima/macos-27/ssh.config lima-macos-27 'bash ~/macports.sh'
 ```
 
 This bypasses the virtiofs cache entirely. After the VM is restarted the cache clears and the mount reflects the current host state.

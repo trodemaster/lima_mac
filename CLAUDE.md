@@ -8,7 +8,7 @@ Use the `/lima-mac` skill (`.claude/skills/lima-mac/SKILL.md`) when working on V
 
 ## What this repo does
 
-Lima configurations and shell scripts for running macOS guest VMs on Apple Silicon. Three VM targets are maintained: `macos-26` (Tahoe release), `macos-26-beta` (beta track), and `macos-15` (Sequoia N-1). The VMs serve as GitHub Actions runners for [blakeports](https://github.com/trodemaster/blakeports) CI.
+Lima configurations and shell scripts for running macOS guest VMs on Apple Silicon. Four VM targets are maintained: `macos-27`, `macos-26` (Tahoe), `macos-15` (Sequoia N-2), and `macos-14` (Sonoma N-3). The VMs serve as GitHub Actions runners for [blakeports](https://github.com/trodemaster/blakeports) CI.
 
 ## Common commands
 
