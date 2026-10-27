@@ -32,7 +32,7 @@ SKIP_OS_UPDATE  ?= 0
 # (empty = skip Xcode, CLT only). A missing file is skipped with a warning.
 XCODE_XIP_26       ?= Xcode_27.xip
 XCODE_XIP_27       ?= Xcode_27.xip
-XCODE_XIP_15       ?= Xcode_26.3_Universal.xip
+XCODE_XIP_15       ?= Xcode_16.4.xip
 XCODE_XIP_14       ?=
 
 # Host-side guest customization tool (Go, no cgo); built on demand.
