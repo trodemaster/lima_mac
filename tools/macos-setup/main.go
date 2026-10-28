@@ -129,7 +129,7 @@ var tasks = []task{
 	{"wallpaper", taskWallpaper},
 	{"screensaver and screen lock", taskScreensaver},
 	{"energy saver", taskEnergy},
-	{"Terminal and Finder AppleEvents (TCC)", taskTCC},
+	{"TCC: Terminal/Finder AppleEvents, runner network volumes", taskTCC},
 }
 
 func main() {
@@ -572,13 +572,26 @@ func checkTCC(db, sysDB string) error {
 	return nil
 }
 
-// taskTCC pre-approves the AppleEvents access that ssh sessions need to drive
-// Finder and Terminal (osascript from a runner job). The two rows are what tccd wrote
-// when the consent dialog was approved by hand on a macOS 26 guest: client
-// /usr/libexec/sshd-keygen-wrapper (a path, client_type 1), auth_value 2 (allowed),
-// auth_reason 3 (user consent), and the code requirements (csreq) of the client
-// and of the target app as blobs. The user database is created, from the system
-// database's layout, if the guest has not made one yet.
+// taskTCC pre-approves two kinds of access in the user's TCC database:
+//
+//   - AppleEvents that ssh sessions need to drive Finder and Terminal (osascript
+//     from a runner job). The two rows are what tccd wrote when the consent dialog
+//     was approved by hand on a macOS 26 guest: client
+//     /usr/libexec/sshd-keygen-wrapper (a path, client_type 1), auth_value 2
+//     (allowed), auth_reason 3 (user consent), and the code requirements (csreq) of
+//     the client and of the target app as blobs.
+//   - Network volumes (kTCCServiceSystemPolicyNetworkVolumes) for the Actions
+//     runner, so jobs can read and write the packages cache's SMB share. tccd
+//     attributes a job's file access to the runner's launchd agent, runsvc.sh,
+//     which runs the runner's bundled node (externals/nodeNN/bin/node
+//     bin/RunnerService.js); without this row the first access raises a consent
+//     dialog nobody answers and the job hangs. Both bundled nodes are granted
+//     because runner self-updates switch between them; they share one designated
+//     requirement (identifier node, Developer ID team HX7739G8FX), so the rows
+//     survive a runner update that replaces the binaries.
+//
+// The user database is created, from the system database's layout, if the guest
+// has not made one yet.
 func taskTCC(v *volume) error {
 	const rel = "Library/Application Support/com.apple.TCC/TCC.db"
 	const sysRel = rel
@@ -622,6 +635,14 @@ func taskTCC(v *volume) error {
 			"policy_id, indirect_object_identifier_type, indirect_object_identifier, indirect_object_code_identity, flags, last_modified) "+
 			"VALUES ('kTCCServiceAppleEvents', '/usr/libexec/sshd-keygen-wrapper', 1, 2, 3, 1, X'%s', NULL, 0, '%s', X'%s', NULL, CAST(strftime('%%s','now') AS INTEGER));",
 			sshdCsreq, t.id, t.identity)
+	}
+	// csreq -r- -b of `codesign -d -r- /opt/actions-runner/externals/node24/bin/node`.
+	const runnerNodeCsreq = "FADE0C0000000090000000010000000600000006000000060000000600000002000000046E6F64650000000F0000000E000000010000000A2A864886F763640602060000000000000000000E000000000000000A2A864886F7636406010D0000000000000000000B000000000000000A7375626A6563742E4F550000000000010000000A485837373339473846580000"
+	for _, node := range []string{"node20", "node24"} {
+		fmt.Fprintf(&sql, "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq, "+
+			"policy_id, indirect_object_identifier_type, indirect_object_identifier, indirect_object_code_identity, flags, last_modified) "+
+			"VALUES ('kTCCServiceSystemPolicyNetworkVolumes', '/opt/actions-runner/externals/%s/bin/node', 1, 2, 3, 1, X'%s', NULL, 0, 'UNUSED', NULL, NULL, CAST(strftime('%%s','now') AS INTEGER));",
+			node, runnerNodeCsreq)
 	}
 	return sqlite(v.abs(db), sql.String())
 }
