@@ -4,7 +4,7 @@
 # Installs MacPorts and configures it for use as a GitHub Actions runner
 # with the blakeports overlay.
 #
-# Run developertools.sh first to install Xcode / CLT, then this script:
+# Run developertools.sh first to install CLT (and Xcode, if available), then this script:
 #   make build-26   (Makefile runs both in order)
 #
 # This script is idempotent — safe to re-run.
@@ -123,6 +123,32 @@ EOF
     else
         log_info "macports.conf already configured — skipping"
     fi
+
+    configure_xcode
+}
+
+# xcode-select points at the CLT (developertools.sh), so MacPorts would find no
+# Xcode: it takes developer_dir from xcode-select and detects xcodeversion by
+# running /usr/bin/xcodebuild, which fails while the CLT is selected. Tell it
+# where Xcode is so use_xcode ports build with Xcode; all other ports still use
+# the CLT. Rewritten on every run so the version follows Xcode updates.
+
+configure_xcode() {
+    local conf=/opt/local/etc/macports/macports.conf
+    local dev=/Applications/Xcode.app/Contents/Developer
+    sudo sed -i '' -E '/^(developer_dir|xcodeversion|xcodebuildcmd)[[:space:]]/d' "$conf"
+    if [[ ! -d "$dev" ]]; then
+        log_info "No Xcode.app — MacPorts will use the CLT only"
+        return 0
+    fi
+    local version
+    version=$(defaults read /Applications/Xcode.app/Contents/version.plist CFBundleShortVersionString)
+    log_info "Pointing MacPorts at Xcode ${version}..."
+    sudo tee -a "$conf" >/dev/null <<EOF
+developer_dir           ${dev}
+xcodeversion            ${version}
+xcodebuildcmd           ${dev}/usr/bin/xcodebuild
+EOF
 }
 
 # ── Step 4: selfupdate ─────────────────────────────────────────────────────────
