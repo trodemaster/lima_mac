@@ -91,6 +91,10 @@ main() {
             [[ -f "$_sa_agent" ]] && launchctl bootstrap gui/"$(id -u)" "$_sa_agent" 2>/dev/null || true
             configure_runner
             ;;
+        network)
+            # Re-apply the network service order on a running VM (make network-NN).
+            configure_network
+            ;;
         autologin)
             # Re-apply auto-login after OS upgrades clear the setting.
             configure_password
@@ -108,6 +112,7 @@ main() {
             configure_autologin
             run_with_timeout 60 configure_setup_assistant || log_warn "configure_setup_assistant timed out or failed (non-fatal — see run_with_timeout comment)"
             run_with_timeout 60 configure_screensaver || log_warn "configure_screensaver timed out or failed (non-fatal — see run_with_timeout comment)"
+            run_with_timeout 60 configure_network || log_warn "configure_network timed out or failed (non-fatal — see run_with_timeout comment)"
             configure_ssh_keys
             configure_chezmoi
             log_info "Configuration complete!"
@@ -150,6 +155,45 @@ configure_screensaver() {
 
 
     log_info "Screensaver, screen lock, and energy saver settings disabled"
+}
+
+# ── Network Service Order ─────────────────────────────────────────────────────
+
+# Make vzNAT, not Lima's user-mode network, the default route. User-mode
+# traffic (192.168.5.0/24) is proxied by the host's limactl hostagent, which
+# on far-star can reach the internet, the router and the host but no other LAN
+# host (darkstar: packages.jibb.tv and its SMB share refuse in milliseconds).
+# vzNAT is NATed by the host kernel and reaches the LAN normally. On Linux
+# guests this is the `metric` in lima.yaml; Lima doesn't apply metrics to
+# macOS guests, where the service order decides the default route instead.
+# The user-mode service stays in the list: ssh from the host arrives on it,
+# and Lima's guest agent keeps setting its DNS ("Ethernet").
+configure_network() {
+    local usernet="" first=() last=() name dev ip
+    # -listnetworkserviceorder prints "(N) <service>" then
+    # "(Hardware Port: ..., Device: enX)" for each service, in order.
+    while IFS=$'\t' read -r name dev; do
+        ip=$(ipconfig getifaddr "$dev" 2>/dev/null || true)
+        if [[ "$ip" == 192.168.5.* ]]; then
+            usernet="$name"
+            last+=("$name")
+        else
+            first+=("$name")
+        fi
+    done < <(networksetup -listnetworkserviceorder | awk '
+        /^\([0-9]+\) / { sub(/^\([0-9]+\) \*?/, ""); name = $0; next }
+        /Device: / && name != "" { d = $0; sub(/.*Device: /, "", d); sub(/\).*/, "", d); print name "\t" d; name = "" }')
+
+    if [[ -z "$usernet" || ${#first[@]} -eq 0 ]]; then
+        log_warn "No Lima user-mode network plus vzNAT pair found; leaving the network service order alone"
+        return 0
+    fi
+    if [[ "$(networksetup -listnetworkserviceorder | awk '/^\([0-9]+\) /' | tail -1)" == *") $usernet" ]]; then
+        log_info "Network service order already puts '$usernet' (Lima user-mode) last"
+        return 0
+    fi
+    log_info "Network service order: ${first[*]} before '$usernet' (Lima user-mode)"
+    sudo networksetup -ordernetworkservices "${first[@]}" "${last[@]}"
 }
 
 # ── Setup Assistant Suppression ───────────────────────────────────────────────

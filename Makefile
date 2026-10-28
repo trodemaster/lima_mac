@@ -2,8 +2,8 @@
 # Manages four VM instances: macos-27, macos-26, macos-15 (N-2), macos-14 (N-3)
 # plus test VMs: macos-26-test, macos-15-test
 
-.PHONY: build-26 patch-26 clean-26 rebuild-26 runner-26 \
-        build-27 patch-27 clean-27 rebuild-27 runner-27 \
+.PHONY: build-26 patch-26 clean-26 rebuild-26 runner-26 network-26 \
+        build-27 patch-27 clean-27 rebuild-27 runner-27 network-27 \
         ci-netatalk-27 \
         build-15 patch-15 clean-15 rebuild-15 runner-15 \
         build-14 patch-14 clean-14 rebuild-14 runner-14 \
@@ -120,6 +120,15 @@ define patch_vm
 	$(call wait_mount,$(1))
 endef
 
+# Re-applies the network service order on a running VM (configure.sh network): vzNAT becomes
+# the default route, so the guest reaches LAN hosts such as darkstar. Lima runs the same step
+# on every boot; this applies it without a restart.
+# Usage: $(call network_vm,INSTANCE_NAME)
+define network_vm
+	$(LIMACTL) shell $(1) /Volumes/lima_mac/configure.sh network
+	$(LIMACTL) shell $(1) -- networksetup -listnetworkserviceorder
+endef
+
 # ── macOS 26 (release) ────────────────────────────────────────────────────────
 
 build-26:
@@ -151,6 +160,9 @@ rebuild-26: clean-26 build-26
 
 runner-26:
 	$(call start_runner,$(INSTANCE_26),$(RUNNER_26))
+
+network-26:
+	$(call network_vm,$(INSTANCE_26))
 
 # ── macOS 27 ──────────────────────────────────────────────────────────────────
 
@@ -193,6 +205,9 @@ rebuild-27: clean-27 build-27
 
 runner-27:
 	$(call start_runner,$(INSTANCE_27),$(RUNNER_27))
+
+network-27:
+	$(call network_vm,$(INSTANCE_27))
 
 # Dispatches the netatalk workflow on the macOS_27 runner only and waits for the result. Needs the runner
 # registered by build-27.
@@ -313,11 +328,13 @@ help:
 	@echo "  clean-27           Deregister runner, stop, and remove macOS 27 VM"
 	@echo "  rebuild-27         Clean then build macOS 27"
 	@echo "  runner-27          Start the existing VM's macOS_27 runner; re-register it if offline"
+	@echo "  network-27         Make vzNAT the guest's default route (reach LAN hosts)"
 	@echo ""
 	@echo "  build-26           Build macOS 26 and register the macOS_26 runner"
 	@echo "  clean-26           Deregister runner, stop, and remove macOS 26 VM"
 	@echo "  rebuild-26         Clean then build macOS 26"
 	@echo "  runner-26          Start the existing VM's macOS_26 runner; re-register it if offline"
+	@echo "  network-26         Make vzNAT the guest's default route (reach LAN hosts)"
 	@echo ""
 	@echo "  build-15           Build macOS 15 and register the macOS_15 runner"
 	@echo "  clean-15           Deregister runner, stop, and remove macOS 15 VM"
