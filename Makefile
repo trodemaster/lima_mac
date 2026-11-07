@@ -30,8 +30,8 @@ SKIP_OS_UPDATE  ?= 0
 # Xcode .xip (a filename in lima_mac/xcode/) installed on each VM. Pick the Xcode that
 # matches the guest; override one on the command line, e.g. `make build-26 XCODE_XIP_26=`
 # (empty = skip Xcode, CLT only). A missing file is skipped with a warning.
-XCODE_XIP_26       ?= Xcode_27.xip
-XCODE_XIP_27       ?= Xcode_27.xip
+XCODE_XIP_26       ?= Xcode_27.2.xip
+XCODE_XIP_27       ?= Xcode_27.2.xip
 XCODE_XIP_15       ?= Xcode_16.4.xip
 XCODE_XIP_14       ?=
 
