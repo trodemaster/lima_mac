@@ -115,11 +115,6 @@ vmOpts:
     rosetta:
       enabled: false
       binfmt: false
-    guestPatch:
-        tccPermissions:
-         - preset: sshd-full-disk-access
-         - preset: lima-guestagent-full-disk-access
-         - preset: terminal-accessibility
 
 # suppressFirstLoginSetup moved from vmOpts.vz to osOpts.Darwin per upstream
 # maintainer feedback on lima-vm/lima#5186.
@@ -129,6 +124,12 @@ osOpts:
     # Automatic login (lima-devl A1), turned on when the account is created, so it takes
     # effect from the second boot; the runner needs a GUI session.
     autoLogin: true
+    # TCC entries written into the guest while the disk is patched, before the
+    # first boot (lima-devl B2).
+    tccPermissions:
+      - preset: sshd-full-disk-access
+      - preset: lima-guestagent-full-disk-access
+      - preset: terminal-accessibility
 
 # Nested virtualisation lets you run another hypervisor inside this VM.
 # Requires Apple M3 or later.

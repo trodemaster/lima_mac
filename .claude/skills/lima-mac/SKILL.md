@@ -211,24 +211,20 @@ cat ~/.lima/macos-26/disk.patched   # exists after successful limactl create
 4. `configure.sh wallpaper` AppleEvent calls time out with `-1712`
 5. macOS writes DENY entries to user TCC for `kTCCServiceAppleEvents`
 
-Correct placement in `vmOpts.vz`:
+Correct placement in `osOpts.Darwin` (lima-devl B2 r14+; before that it was
+`vmOpts.vz.guestPatch.tccPermissions`):
 ```yaml
-vmOpts:
-  vz:
-    diskImageFormat: "asif"
-    rosetta:
-      enabled: false
-      binfmt: false
-    suppressFirstLoginSetup: {}   # <-- REQUIRED, must not be omitted
-    guestPatch:
-        tccPermissions:
-         - preset: sshd-full-disk-access
-         - preset: lima-guestagent-full-disk-access
-         - preset: terminal-accessibility
-         - service: kTCCServiceAccessibility
-           client: /opt/local/bin/cliclick
-           clientType: path
-           authValue: allow
+osOpts:
+  Darwin:
+    suppressFirstLoginSetup: true   # <-- REQUIRED, must not be omitted
+    tccPermissions:
+      - preset: sshd-full-disk-access
+      - preset: lima-guestagent-full-disk-access
+      - preset: terminal-accessibility
+      - service: kTCCServiceAccessibility
+        client: /opt/local/bin/cliclick
+        clientType: path
+        authValue: allow
 ```
 
 This activates B1 fakecloudinit: cidata.go emits `suppress_first_login_setup: true` into user-data; fakecloudinit reads it and calls `suppressFirstLoginScreens()` from `createUser()` on first boot, writing the SetupAssistant plist with `MiniBuddyLaunchReason: 0`.
@@ -322,7 +318,7 @@ When refactoring B1/B2 patches in `lima-devl`:
 
 3. **Instance copies out of sync** — after editing templates, instance copies in `~/.lima/*/lima.yaml` must be updated manually. The Makefile `rebuild-*` targets do a fresh `limactl create` from the template, but existing instances need manual updates.
 
-4. **B2 TCC entries missing** — if `guestPatch.tccPermissions` section is malformed YAML or missing a required preset, Lima silently skips patching. Inspect system TCC DB after disk attach to confirm all 4 expected entries are present.
+4. **B2 TCC entries missing** — if the `osOpts.Darwin.tccPermissions` section is malformed YAML or missing a required preset, Lima silently skips patching. Inspect system TCC DB after disk attach to confirm all 4 expected entries are present.
 
 5. **`disk.patched` sentinel not created** — if `limactl create` exits with an error mid-way, the sentinel may not exist. The disk may be in a partially patched state. Best fix: `limactl remove -f macos-26` and rebuild.
 
