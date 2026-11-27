@@ -237,6 +237,11 @@ FADE0C000000002C00000001000000060000000200000010636F6D2E6170706C652E66696E646572
 
 The tool runs using Terminal's Accessibility permission — it does NOT need AppleEvents. This is raw AX API access, completely separate from `kTCCServiceAppleEvents`.
 
+> **2026-11-26:** the `terminal-accessibility` preset was removed from lima-devl B2 r16 and from the
+> yamls. The rows survive, but on macOS 26 and 27 Terminal still isn't Accessibility-trusted
+> (`AXIsProcessTrusted` false from a Terminal shell), so step 1 never worked there. See blakeports
+> `findings/lima-tcc-sshd-csreq.md`.
+
 **First-boot flow:**
 1. Lima disk patching writes `terminal-accessibility` preset (system DB, confirmed to survive)
 2. At first login, a LaunchAgent (user-level) starts `lima-tcc-approve` in the background

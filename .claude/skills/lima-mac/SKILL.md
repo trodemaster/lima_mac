@@ -143,19 +143,13 @@ sqlite3 /Volumes/Data/Library/Application\ Support/com.apple.TCC/TCC.db \
 ### Expected system TCC entries (B2 disk patching)
 
 ```
-kTCCServiceSystemPolicyAllFiles | com.openssh.sshd           | bundle | allow | 4
-kTCCServiceSystemPolicyAllFiles | com.apple.lima.guest-agent | bundle | allow | 4
-kTCCServiceAccessibility        | com.apple.Terminal         | bundle | allow | 4
-kTCCServiceAccessibility        | /opt/local/bin/cliclick    | path   | allow | 4
+kTCCServiceSystemPolicyAllFiles | /usr/libexec/sshd-keygen-wrapper | path | allow  (csreq: identifier "com.apple.sshd-keygen-wrapper" and anchor apple)
+kTCCServiceSystemPolicyAllFiles | /Volumes/cidata/lima-guestagent  | path | allow  (csreq NULL; tccd records the agent's cdhash on first use)
 ```
 
-**Important**: the `cliclick-accessibility` TCC preset was removed from B2 code. Templates must specify it via custom entry:
-```yaml
-- service: kTCCServiceAccessibility
-  client: /opt/local/bin/cliclick
-  clientType: path
-  authValue: allow
-```
+B2 is presets only since r17 (`sshd-full-disk-access`, `lima-guestagent-full-disk-access`);
+custom entries and the Terminal preset are gone (macOS 26/27 ignore pre-written Accessibility
+rows). Customization that needs other TCC rows goes through `tools/macos-setup` (`make patch-NN`).
 
 ### Checking for bad entries
 
@@ -220,11 +214,6 @@ osOpts:
     tccPermissions:
       - preset: sshd-full-disk-access
       - preset: lima-guestagent-full-disk-access
-      - preset: terminal-accessibility
-      - service: kTCCServiceAccessibility
-        client: /opt/local/bin/cliclick
-        clientType: path
-        authValue: allow
 ```
 
 This activates B1 fakecloudinit: cidata.go emits `suppress_first_login_setup: true` into user-data; fakecloudinit reads it and calls `suppressFirstLoginScreens()` from `createUser()` on first boot, writing the SetupAssistant plist with `MiniBuddyLaunchReason: 0`.

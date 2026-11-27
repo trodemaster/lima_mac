@@ -421,7 +421,7 @@ The viable B2 TCC entries are preset-based writes to the **system** TCC.db:
 |---|---|---|
 | `sshd-full-disk-access` | system | sshd can read any file |
 | `lima-guestagent-full-disk-access` | system | guest agent can read any file |
-| `terminal-accessibility` | system | Terminal can control accessibility (for configure.sh wallpaper step) |
+| ~~`terminal-accessibility`~~ | system | removed 2026-11-26 (B2 r16): the row survives but macOS 26/27 ignore it |
 
 ---
 

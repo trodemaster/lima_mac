@@ -115,7 +115,6 @@ osOpts:
     tccPermissions:
       - preset: sshd-full-disk-access
       - preset: lima-guestagent-full-disk-access
-      - preset: terminal-accessibility
 
 # Nested virtualisation lets you run another hypervisor inside this VM.
 # Requires Apple M3 or later.
